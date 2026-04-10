@@ -10,10 +10,11 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { useCurrency, CURRENCIES } from "../../contexts/CurrencyContext";
 import { onNotification } from "../../lib/socket";
 import { getInitials } from "../../lib/utils";
 import type { RealtimeNotification } from "../../types/api";
+import { useCurrency } from "../../hooks/useCurrency";
+import { CURRENCIES } from "../../constants/currency";
 
 interface TopBarProps {
   onToggleSidebar: () => void;

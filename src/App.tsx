@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "./contexts/AuthProvider";
-import { CurrencyProvider } from "./contexts/CurrencyContext";
+import { AuthProvider } from "./contexts/auth/AuthProvider";
 import { AppRouter } from "./router";
+import { CurrencyProvider } from "./contexts/currency/CurrencyProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {

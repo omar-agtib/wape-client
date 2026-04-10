@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { api, extractData, tokenStorage } from "../lib/api";
-import { connectSocket, disconnectSocket } from "../lib/socket";
+import { api, extractData, tokenStorage } from "../../lib/api";
+import { connectSocket, disconnectSocket } from "../../lib/socket";
 import type {
   MeResponse,
   AuthTokens,
   LoginPayload,
   RegisterPayload,
   UserRole,
-} from "../types/api";
+} from "../../types/api";
 import { AuthContext } from "./AuthContext";
 
 interface AuthState {

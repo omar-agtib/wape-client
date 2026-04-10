@@ -1,4 +1,4 @@
-import React, { type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { AlertCircle, CheckCircle, Info, XCircle, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 
