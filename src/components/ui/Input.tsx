@@ -1,4 +1,4 @@
-import React, { type InputHTMLAttributes, forwardRef, useState } from "react";
+import { type InputHTMLAttributes, forwardRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { cn } from "../../lib/utils";
 

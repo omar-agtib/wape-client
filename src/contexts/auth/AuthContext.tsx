@@ -1,10 +1,10 @@
 import { createContext } from "react";
 import type {
-  MeResponse,
   LoginPayload,
+  MeResponse,
   RegisterPayload,
   UserRole,
-} from "../types/api";
+} from "../../types/api";
 
 interface AuthState {
   user: MeResponse | null;
