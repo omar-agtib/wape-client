@@ -149,9 +149,10 @@ api.interceptors.response.use(
 
 // ── API helpers ────────────────────────────────────────────────────────────────
 
-export function extractData<T>(
-  response: AxiosResponse<{ success: boolean; data: T }>,
-): T {
+export async function extractData<T>(
+  responsePromise: Promise<AxiosResponse<{ success: boolean; data: T }>>,
+): Promise<T> {
+  const response = await responsePromise;
   return response.data.data;
 }
 

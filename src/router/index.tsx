@@ -1,29 +1,51 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import React from "react";
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Navigate,
+} from "react-router-dom";
 import { ProtectedRoute, PublicOnlyRoute } from "./ProtectedRoute";
 import { LoginPage } from "../pages/auth/LoginPage";
 import { RegisterPage } from "../pages/auth/RegisterPage";
 import { UnauthorizedPage } from "../pages/UnauthorizedPage";
+import Layout from "../Layout";
+import { PAGES } from "../pages.config";
 
-// ── Lazy imports for protected pages (add as you build them) ──────────────────
-// import { lazy, Suspense } from 'react';
-// const DashboardPage = lazy(() => import('../pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
-
-// Placeholder for pages not yet built
-function ComingSoon({ page }: { page: string }) {
-  return (
-    <div className="flex items-center justify-center h-full min-h-screen">
-      <div className="text-center space-y-2">
-        <h2 className="text-xl font-semibold text-foreground">{page}</h2>
-        <p className="text-muted-foreground text-sm">
-          This page is ready for integration
-        </p>
-      </div>
-    </div>
-  );
-}
+const appRoutes = [
+  { path: "/dashboard", page: "Dashboard" },
+  { path: "/projects", page: "Projects" },
+  { path: "/projects/:id", page: "ProjectDetails" },
+  { path: "/plans", page: "Plans" },
+  { path: "/tasks", page: "Tasks" },
+  { path: "/tasks/:id", page: "TaskDetails" },
+  { path: "/personnel", page: "Personnel" },
+  { path: "/tools", page: "Tools" },
+  { path: "/articles", page: "Articles" },
+  { path: "/stock", page: "Stock" },
+  { path: "/purchase-orders", page: "PurchaseOrders" },
+  { path: "/receptions", page: "Reception" },
+  { path: "/finance", page: "Finance" },
+  { path: "/finance/supplier-payments", page: "Expenses" },
+  { path: "/finance/transactions", page: "Payments" },
+  { path: "/invoices", page: "Invoices" },
+  { path: "/attachments", page: "Attachments" },
+  { path: "/contacts/clients", page: "Clients" },
+  { path: "/contacts/suppliers", page: "Suppliers" },
+  { path: "/contacts/subcontractors", page: "Subcontractors" },
+  { path: "/documents", page: "Documents" },
+  { path: "/non-conformities", page: "NonConformities" },
+  { path: "/communication", page: "Communication" },
+  { path: "/reporting", page: "Reporting" },
+  { path: "/support", page: "TrainingSupport" },
+  { path: "/admin", page: "Administration" },
+  { path: "/admin/tutorials", page: "Administration" },
+  { path: "/pointage", page: "PointageJournalier" },
+  { path: "/pointage/rapport", page: "RapportPresence" },
+  { path: "/settings", page: "Administration" },
+];
 
 const router = createBrowserRouter([
-  // ── Public only routes (redirect to dashboard if logged in) ──────────────────
+  // ── Public only ─────────────────────────────────────────────────────────────
   {
     element: <PublicOnlyRoute />,
     children: [
@@ -32,52 +54,27 @@ const router = createBrowserRouter([
     ],
   },
 
-  // ── Protected routes ──────────────────────────────────────────────────────────
+  // ── Protected + Layout wrapper ────────────────────────────────────────────────
   {
     element: <ProtectedRoute />,
     children: [
-      { path: "/dashboard", element: <ComingSoon page="Dashboard" /> },
-      { path: "/projects", element: <ComingSoon page="Projects" /> },
-      { path: "/projects/:id", element: <ComingSoon page="Project Detail" /> },
-      { path: "/tasks", element: <ComingSoon page="Tasks" /> },
-      { path: "/personnel", element: <ComingSoon page="Personnel" /> },
-      { path: "/tools", element: <ComingSoon page="Tools" /> },
-      { path: "/articles", element: <ComingSoon page="Articles" /> },
-      { path: "/stock", element: <ComingSoon page="Stock" /> },
-      { path: "/contacts", element: <ComingSoon page="Contacts" /> },
       {
-        path: "/purchase-orders",
-        element: <ComingSoon page="Purchase Orders" />,
-      },
-      { path: "/receptions", element: <ComingSoon page="Receptions" /> },
-      { path: "/attachments", element: <ComingSoon page="Attachments" /> },
-      { path: "/invoices", element: <ComingSoon page="Invoices" /> },
-      { path: "/finance", element: <ComingSoon page="Finance" /> },
-      {
-        path: "/non-conformities",
-        element: <ComingSoon page="Non-Conformities" />,
-      },
-      { path: "/documents", element: <ComingSoon page="Documents" /> },
-      { path: "/support", element: <ComingSoon page="Support" /> },
-      { path: "/settings", element: <ComingSoon page="Settings" /> },
-    ],
-  },
-
-  // ── Admin-only routes ─────────────────────────────────────────────────────────
-  {
-    element: <ProtectedRoute allowedRoles={["admin"]} />,
-    children: [
-      {
-        path: "/admin/tutorials",
-        element: <ComingSoon page="Tutorials Admin" />,
+        element: <Layout />,
+        children: appRoutes.map(({ path, page }) => {
+          const PageComponent = PAGES[page];
+          return {
+            path,
+            element: PageComponent ? <PageComponent /> : null,
+          };
+        }),
       },
     ],
   },
 
-  // ── Misc ──────────────────────────────────────────────────────────────────────
+  // ── Misc ─────────────────────────────────────────────────────────────────────
   { path: "/unauthorized", element: <UnauthorizedPage /> },
-  { path: "/", element: <PublicOnlyRoute /> },
-  { path: "*", element: <ComingSoon page="404 — Page not found" /> },
+  { path: "/", element: <Navigate to="/dashboard" replace /> },
+  { path: "*", element: <Navigate to="/dashboard" replace /> },
 ]);
 
 export function AppRouter() {

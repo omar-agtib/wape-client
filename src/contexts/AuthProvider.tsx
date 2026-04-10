@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, extractData, tokenStorage } from "../lib/api";
 import { connectSocket, disconnectSocket } from "../lib/socket";
 import type {
@@ -34,8 +34,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const fetchCurrentUser = useCallback(async () => {
     try {
       setState((prev) => ({ ...prev, isLoading: true }));
+      // ✅ removed inner await — extractData now accepts a Promise directly
       const user = await extractData(
-        await api.get<{ success: boolean; data: MeResponse }>("/auth/me"),
+        api.get<{ success: boolean; data: MeResponse }>("/auth/me"),
       );
       setState({
         user,
@@ -60,7 +61,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     if (!tokenStorage.isAuthenticated()) return;
-
     void (async () => {
       await fetchCurrentUser();
     })();
@@ -78,8 +78,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = useCallback(
     async (payload: LoginPayload) => {
+      // ✅ removed inner await
       const tokens = await extractData(
-        await api.post<{ success: boolean; data: AuthTokens }>(
+        api.post<{ success: boolean; data: AuthTokens }>(
           "/auth/login",
           payload,
         ),
@@ -92,8 +93,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const register = useCallback(
     async (payload: RegisterPayload) => {
+      // ✅ removed inner await
       const tokens = await extractData(
-        await api.post<{ success: boolean; data: AuthTokens }>(
+        api.post<{ success: boolean; data: AuthTokens }>(
           "/auth/register",
           payload,
         ),
