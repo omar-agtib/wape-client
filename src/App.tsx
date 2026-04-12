@@ -1,12 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/auth/AuthProvider";
-import { AppRouter } from "./router";
 import { CurrencyProvider } from "./contexts/currency/CurrencyProvider";
+import { ToastProvider } from "./components/ui/Toast";
+import { AppRouter } from "./router";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 30, // 30 seconds
+      staleTime: 1000 * 30,
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -18,7 +19,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CurrencyProvider>
-          <AppRouter />
+          <ToastProvider>
+            <AppRouter />
+          </ToastProvider>
         </CurrencyProvider>
       </AuthProvider>
     </QueryClientProvider>

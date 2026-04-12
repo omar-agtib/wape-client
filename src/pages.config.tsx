@@ -3,15 +3,16 @@ import { ComingSoon } from "./components/shared/ComingSoon";
 
 // ── Existing pages ─────────────────────────────────────────────────────────────
 import Dashboard from "./pages/Dashboard";
+import Projects from "./pages/Projects";
 
 const make = (title: string) => () => <ComingSoon title={title} />;
 
 // ── Page registry ─────────────────────────────────────────────────────────────
 export const PAGES: Record<string, React.ComponentType> = {
   Dashboard,
+  Projects,
 
   // Sprint 13 — to be integrated one by one
-  Projects: make("Projects"),
   ProjectDetails: make("Project Detail"),
   Plans: make("Plans — Coming Soon"),
   Tasks: make("Tasks"),
