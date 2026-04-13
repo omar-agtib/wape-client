@@ -4,6 +4,9 @@ import { ComingSoon } from "./components/shared/ComingSoon";
 // ── Existing pages ─────────────────────────────────────────────────────────────
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
+import ProjectDetails from "./pages/ProjectDetails";
+import Tasks from "./pages/Tasks";
+import TaskDetails from "./pages/TaskDetails";
 
 const make = (title: string) => () => <ComingSoon title={title} />;
 
@@ -11,12 +14,12 @@ const make = (title: string) => () => <ComingSoon title={title} />;
 export const PAGES: Record<string, React.ComponentType> = {
   Dashboard,
   Projects,
+  ProjectDetails,
+  Tasks,
+  TaskDetails,
 
   // Sprint 13 — to be integrated one by one
-  ProjectDetails: make("Project Detail"),
   Plans: make("Plans — Coming Soon"),
-  Tasks: make("Tasks"),
-  TaskDetails: make("Task Detail"),
   Personnel: make("Personnel"),
   Tools: make("Tools & Equipment"),
   Articles: make("Articles"),

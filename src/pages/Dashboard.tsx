@@ -55,27 +55,27 @@ export default function Dashboard() {
   // ── Data fetching ─────────────────────────────────────────────────────────
   const { data: projectsData } = useQuery({
     queryKey: ["projects", "dashboard"],
-    queryFn: () => projectsService.list({ limit: 100 }),
+    queryFn: () => projectsService.list(),
   });
 
   const { data: tasksData } = useQuery({
     queryKey: ["tasks", "dashboard"],
-    queryFn: () => tasksService.list({ limit: 100 }),
+    queryFn: () => tasksService.list(),
   });
 
   const { data: personnelData } = useQuery({
     queryKey: ["personnel", "dashboard"],
-    queryFn: () => personnelService.list({ limit: 100 }),
+    queryFn: () => personnelService.list(),
   });
 
   const { data: articlesData } = useQuery({
     queryKey: ["articles", "dashboard"],
-    queryFn: () => articlesService.list({ limit: 100 }),
+    queryFn: () => articlesService.list(),
   });
 
   const { data: ncsData } = useQuery({
     queryKey: ["ncs", "dashboard"],
-    queryFn: () => ncService.list({ limit: 100 }),
+    queryFn: () => ncService.list(),
   });
 
   const { data: financeDashboard } = useQuery({

@@ -1,260 +1,347 @@
-/**
- * EXAMPLE PAGE — Projects
- * Shows how all components compose together for a full CRUD page.
- * Copy this pattern for every other page in Sprint 13.
- */
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Plus,
-  FolderKanban,
-  MoreVertical,
-  Eye,
-  Edit,
-  Trash2,
-} from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { format } from "date-fns";
+import { Eye } from "lucide-react";
 
-// UI
-import { Button } from "../components/ui/Button";
-import { Table } from "../components/ui/Table";
-import { Pagination } from "../components/ui/Pagination";
-import { Dropdown } from "../components/ui/Controls";
-import { FilterBar } from "../components/ui/Controls";
-import { Confirm } from "../components/ui/Modal";
-import { EmptyState } from "../components/ui/Misc";
-import { Progress } from "../components/ui/Misc";
-import { useToast } from "../components/ui/Toast";
+import type { Project } from "@/types/api";
 
-// Shared
-import { PageHeader } from "../components/layout/PageLayout";
-import KPICard from "../components/shared/KPICard";
+import PageHeader from "../components/shared/PageHeader";
+import DataTable from "../components/shared/DataTable";
 import StatusBadge from "../components/shared/StatusBadge";
+import FormDialog from "../components/shared/FormDialog";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import CurrencyInput from "../components/shared/CurrencyInput";
+import {
+  projectsService,
+  contactsService,
+  CreateProjectPayload,
+  UpdateProjectPayload,
+} from "@/services/wape.service";
 
-// Hooks
-import { usePaginatedQuery, useDisclosure } from "../hooks/useTable";
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-// Services + types
-import { projectsService } from "../services/wape.service";
-import type { Project } from "../types/api";
-import type { Column } from "../components/ui/Table";
+type ProjectStatus = "planned" | "on_progress" | "completed";
+
+type FormState = Partial<
+  CreateProjectPayload & { id: string; progress: number; description: string }
+>;
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Projects() {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const { success, error } = useToast();
-  const deleteModal = useDisclosure();
-  const [targetId, setTargetId] = React.useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Project | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>(
+    "all",
+  );
+  const [form, setForm] = useState<FormState>({});
 
-  // ── Data ──────────────────────────────────────────────────────────────────
-  const {
-    data,
-    total,
-    totalPages,
-    loading,
-    page,
-    setPage,
-    search,
-    setSearch,
-    filters,
-    setFilter,
-    resetFilters,
-  } = usePaginatedQuery(["projects"], projectsService.list, { limit: 15 });
+  const queryClient = useQueryClient();
 
-  // ── KPIs ──────────────────────────────────────────────────────────────────
-  const active = data.filter((p) => p.status === "on_progress").length;
-  const completed = data.filter((p) => p.status === "completed").length;
-  const planned = data.filter((p) => p.status === "planned").length;
-
-  // ── Delete mutation ────────────────────────────────────────────────────────
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => projectsService.list({ id }), // replace with projectsService.delete(id)
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["projects"] });
-      success("Project deleted", "The project has been removed successfully.");
-      deleteModal.close();
-    },
-    onError: () => error("Delete failed", "Could not delete this project."),
+  // ── Queries
+  const { data: projectsData, isLoading } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => projectsService.list({ limit: 100 }),
   });
 
-  // ── Columns ───────────────────────────────────────────────────────────────
-  const columns: Column<Project>[] = [
+  const { data: clientsData } = useQuery({
+    queryKey: ["clients"],
+    queryFn: () => contactsService.listClients({ limit: 100 }),
+  });
+
+  const projects = projectsData?.items ?? [];
+  const clients = clientsData?.items ?? [];
+
+  // ── Mutations
+  const saveMutation = useMutation({
+    mutationFn: (data: FormState) => {
+      const payload: CreateProjectPayload = {
+        name: data.name!,
+        clientId: data.clientId,
+        description: data.description,
+        budget: data.budget ?? 0,
+        currency: data.currency ?? "MAD",
+        startDate: data.startDate!,
+        endDate: data.endDate!,
+        status: data.status as ProjectStatus,
+      };
+
+      return editing
+        ? projectsService.update(editing.id, payload as UpdateProjectPayload)
+        : projectsService.create(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setShowForm(false);
+      setEditing(null);
+      setForm({});
+    },
+  });
+
+  // ── Helpers
+  const openForm = (project?: Project) => {
+    if (project) {
+      setEditing(project);
+      setForm({
+        name: project.name,
+        clientId: project.clientId,
+        description: project.description,
+        budget: project.budget,
+        currency: project.currency,
+        startDate: project.startDate,
+        endDate: project.endDate,
+        status: project.status,
+      });
+    } else {
+      setEditing(null);
+      setForm({ status: "planned", budget: 0, currency: "MAD" });
+    }
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!form.name || !form.startDate || !form.endDate) return;
+    saveMutation.mutate(form);
+  };
+
+  // ── Filtering (client-side on loaded page)
+  const filtered = projects.filter((p) => {
+    const matchSearch =
+      !search || p.name?.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || p.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  // ── Table columns
+  const columns = [
     {
-      key: "name",
       header: "Project",
-      render: (row) => (
+      cell: (row: Project) => (
         <div>
           <p className="font-medium text-foreground">{row.name}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {row.startDate} → {row.endDate}
-          </p>
+          {row.clientId && (
+            <p className="text-xs text-muted-foreground">
+              {clients.find((c) => c.id === row.clientId)?.legalName ?? "—"}
+            </p>
+          )}
         </div>
       ),
     },
     {
-      key: "status",
-      header: "Status",
-      width: "120px",
-      render: (row) => <StatusBadge status={row.status} />,
-    },
-    {
-      key: "progress",
-      header: "Progress",
-      width: "160px",
-      render: (row) => <Progress value={row.progress} showValue size="sm" />,
-    },
-    {
-      key: "budget",
-      header: "Budget",
-      align: "right",
-      width: "120px",
-      render: (row) => (
-        <span className="text-sm font-medium">
-          {new Intl.NumberFormat("fr-MA").format(row.budget)} {row.currency}
+      header: "Duration",
+      cell: (row: Project) => (
+        <span className="text-xs">
+          {row.startDate ? format(new Date(row.startDate), "MMM d, yy") : "—"}
+          {" → "}
+          {row.endDate ? format(new Date(row.endDate), "MMM d, yy") : "—"}
         </span>
       ),
     },
     {
-      key: "actions",
+      header: "Budget",
+      cell: (row: Project) =>
+        row.budget ? `${row.budget.toLocaleString()} ${row.currency}` : "—",
+    },
+    {
+      header: "Status",
+      cell: (row: Project) => <StatusBadge status={row.status} />,
+    },
+    {
+      header: "Progress",
+      cell: (row: Project) => (
+        <div className="flex items-center gap-2 min-w-[120px]">
+          <Progress value={row.progress ?? 0} className="h-2 flex-1" />
+          <span className="text-xs font-medium text-muted-foreground w-8">
+            {row.progress ?? 0}%
+          </span>
+        </div>
+      ),
+    },
+    {
       header: "",
-      width: "48px",
-      align: "right",
-      render: (row) => (
-        <Dropdown
-          align="right"
-          trigger={
-            <button className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          }
-          items={[
-            {
-              key: "view",
-              label: "View details",
-              icon: Eye,
-              onClick: () => navigate(`/projects/${row.id}`),
-            },
-            {
-              key: "edit",
-              label: "Edit",
-              icon: Edit,
-              onClick: () => navigate(`/projects/${row.id}?edit=true`),
-            },
-            { key: "div", label: "", divider: true },
-            {
-              key: "delete",
-              label: "Delete",
-              icon: Trash2,
-              variant: "danger",
-              onClick: () => {
-                setTargetId(row.id);
-                deleteModal.open();
-              },
-            },
-          ]}
-        />
+      cell: (row: Project) => (
+        <div className="flex gap-1">
+          <Link to={`/projects/${row.id}`}>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Eye className="w-4 h-4" />
+            </Button>
+          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              openForm(row);
+            }}
+          >
+            Edit
+          </Button>
+        </div>
       ),
     },
   ];
 
+  // ── Render
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Projects"
-        subtitle={`${total} projects total`}
-        actions={
-          <Button onClick={() => navigate("/projects/new")}>
-            <Plus className="w-4 h-4" /> New Project
-          </Button>
-        }
-      />
+        subtitle={`${projects.length} total projects`}
+        onAdd={() => openForm()}
+        addLabel="New Project"
+        searchValue={search}
+        onSearch={setSearch}
+      >
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
+        >
+          <SelectTrigger className="w-36 bg-card">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="planned">Planned</SelectItem>
+            <SelectItem value="on_progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
+      </PageHeader>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
-        <KPICard
-          title="In Progress"
-          value={active}
-          icon={FolderKanban}
-          color="primary"
-        />
-        <KPICard
-          title="Completed"
-          value={completed}
-          icon={FolderKanban}
-          color="success"
-        />
-        <KPICard
-          title="Planned"
-          value={planned}
-          icon={FolderKanban}
-          color="muted"
-        />
-      </div>
+      <DataTable columns={columns} data={filtered} isLoading={isLoading} />
 
-      {/* Filter bar */}
-      <FilterBar
-        search={{
-          value: search,
-          onChange: setSearch,
-          placeholder: "Search projects...",
-        }}
-        filters={[
-          {
-            key: "status",
-            label: "Status",
-            options: [
-              { value: "planned", label: "Planned" },
-              { value: "on_progress", label: "In Progress" },
-              { value: "completed", label: "Completed" },
-            ],
-          },
-        ]}
-        values={filters}
-        onFilterChange={setFilter}
-        onReset={resetFilters}
-      />
+      {/* ── Form Dialog */}
+      <FormDialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        title={editing ? "Edit Project" : "New Project"}
+      >
+        <div className="grid grid-cols-2 gap-4">
+          {/* Name */}
+          <div className="col-span-2">
+            <Label>Project Name *</Label>
+            <Input
+              value={form.name ?? ""}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
 
-      {/* Table */}
-      <Table
-        columns={columns}
-        data={data}
-        keyExtractor={(row) => row.id}
-        loading={loading}
-        onRowClick={(row) => navigate(`/projects/${row.id}`)}
-        emptyState={
-          <EmptyState
-            icon={<FolderKanban className="w-6 h-6 text-muted-foreground" />}
-            title="No projects yet"
-            description="Create your first project to get started."
-            action={
-              <Button size="sm" onClick={() => navigate("/projects/new")}>
-                <Plus className="w-4 h-4" /> New Project
-              </Button>
-            }
-          />
-        }
-      />
+          {/* Client */}
+          <div>
+            <Label>Client</Label>
+            <Select
+              value={form.clientId ?? "none"}
+              onValueChange={(v) =>
+                setForm({ ...form, clientId: v === "none" ? undefined : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select client" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No client</SelectItem>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.legalName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-      {/* Pagination */}
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        total={total}
-        limit={15}
-        onPageChange={setPage}
-      />
+          {/* Status */}
+          <div>
+            <Label>Status</Label>
+            <Select
+              value={form.status ?? "planned"}
+              onValueChange={(v) =>
+                setForm({ ...form, status: v as ProjectStatus })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="planned">Planned</SelectItem>
+                <SelectItem value="on_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      {/* Delete confirm */}
-      <Confirm
-        open={deleteModal.isOpen}
-        onClose={deleteModal.close}
-        onConfirm={() => targetId && deleteMutation.mutate(targetId)}
-        loading={deleteMutation.isPending}
-        title="Delete project?"
-        message="This will permanently delete the project and all associated data. This action cannot be undone."
-        confirmLabel="Delete project"
-        variant="danger"
-      />
+          {/* Dates */}
+          <div>
+            <Label>Start Date *</Label>
+            <Input
+              type="date"
+              value={form.startDate ?? ""}
+              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>End Date *</Label>
+            <Input
+              type="date"
+              value={form.endDate ?? ""}
+              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+            />
+          </div>
+
+          {/* Budget */}
+          <div className="col-span-2">
+            <Label>Budget</Label>
+            <CurrencyInput
+              value={form.budget}
+              onChange={(v) => setForm({ ...form, budget: v })}
+              currency={form.currency}
+              onCurrencyChange={(c) => setForm({ ...form, currency: c })}
+            />
+          </div>
+
+          {/* Description */}
+          <div className="col-span-2">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description ?? ""}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="col-span-2 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={
+                saveMutation.isPending ||
+                !form.name ||
+                !form.startDate ||
+                !form.endDate
+              }
+            >
+              {saveMutation.isPending ? "Saving..." : "Save Project"}
+            </Button>
+          </div>
+        </div>
+      </FormDialog>
     </div>
   );
 }
