@@ -3,9 +3,9 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Building2, LogIn } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { extractApiError } from "../../lib/api";
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
-import { Alert } from "../../components/ui/Alert";
+import { Button } from "../../components/uid/Button";
+import { Input } from "../../components/uid/Input";
+import { Alert } from "../../components/uid/Alert";
 
 export function LoginPage() {
   const navigate = useNavigate();

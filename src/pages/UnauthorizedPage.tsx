@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ShieldX } from "lucide-react";
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/uid/Button";
 import { useAuth } from "../hooks/useAuth";
 
 export function UnauthorizedPage() {

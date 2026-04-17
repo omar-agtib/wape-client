@@ -15,6 +15,13 @@ import { getInitials } from "../../lib/utils";
 import type { RealtimeNotification } from "../../types/api";
 import { useCurrency } from "../../hooks/useCurrency";
 import { CURRENCIES } from "../../constants/currency";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -88,21 +95,26 @@ export default function TopBar({ onToggleSidebar, pageTitle }: TopBarProps) {
         </div>
 
         {/* Currency selector */}
-        <select
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-          className="
-            h-9 px-2 rounded-lg bg-muted/50 border border-border
-            text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring
-            cursor-pointer
-          "
+        <Select
+          onValueChange={(value) => setCurrency(value)}
+          defaultValue={currency}
         >
-          {CURRENCIES.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.code} {c.symbol}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="h-9 w-40 border border-border bg-muted/50 rounded-lg">
+            <SelectValue
+              placeholder={
+                CURRENCIES.find((c) => c.code === currency)?.symbol ??
+                "Currency"
+              }
+            />
+          </SelectTrigger>
+          <SelectContent className="bg-card border border-border rounded-lg">
+            {CURRENCIES.map((curr) => (
+              <SelectItem key={curr.code} value={curr.code}>
+                {curr.symbol} - {curr.code}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* Notifications */}
         <div className="relative">
