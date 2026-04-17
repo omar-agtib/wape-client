@@ -8,6 +8,7 @@ import {
   toolsService,
   contactsService,
   type CreateTaskPayload,
+  type UpdateTaskPayload,
 } from "@/services/wape.service";
 import type { Project, Personnel, Article, Tool, Task } from "@/types/api";
 
@@ -57,14 +58,14 @@ interface FormState {
   startDate: string;
   endDate: string;
   status: TaskStatus;
-  estimatedCost: number;
   currency: string;
+  progress: number;
 }
 
 interface Props {
   task?: Task | null;
   projects: Project[];
-  onSave: (payload: CreateTaskPayload) => void;
+  onSave: (payload: CreateTaskPayload | UpdateTaskPayload) => void;
   onCancel: () => void;
   saving: boolean;
 }
@@ -88,8 +89,8 @@ export default function TaskForm({
     startDate: task?.startDate ?? "",
     endDate: task?.endDate ?? "",
     status: (task?.status as TaskStatus) ?? "planned",
-    estimatedCost: task?.estimatedCost ?? 0,
     currency: task?.currency ?? "MAD",
+    progress: task?.progress ?? 0,
   });
 
   // Sub-resource rows (local UI state — saved separately after task create/update)
@@ -129,14 +130,42 @@ export default function TaskForm({
         fullName: name,
         role: "Worker",
         costPerHour: 0,
+        currency: form.currency as "MAD" | "USD" | "EUR" | "GBP",
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["personnel"] }),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["personnel"] });
+      setPersonnelRows((prev) => [
+        ...prev,
+        {
+          personnelId: (created as any).id,
+          fullName: (created as any).fullName,
+          plannedHours: 8,
+          costPerHour: 0,
+        },
+      ]);
+    },
   });
 
   const quickCreateArticle = useMutation({
     mutationFn: (name: string) =>
-      articlesService.create({ name, category: "General", unitPrice: 0 }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["articles"] }),
+      articlesService.create({
+        name,
+        category: "General",
+        unitPrice: 0,
+        currency: form.currency as "MAD" | "USD" | "EUR" | "GBP",
+      }),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      setArticleRows((prev) => [
+        ...prev,
+        {
+          articleId: (created as any).id,
+          name: (created as any).name,
+          plannedQuantity: 1,
+          unitPrice: 0,
+        },
+      ]);
+    },
   });
 
   // ── Personnel helpers
@@ -229,22 +258,32 @@ export default function TaskForm({
 
   // ── Submit
   const handleSave = () => {
-    const payload: CreateTaskPayload = {
-      name: form.name,
-      projectId: form.projectId,
-      description: form.description || undefined,
-      startDate: form.startDate,
-      endDate: form.endDate,
-      status: form.status,
-      estimatedCost: totalEst > 0 ? totalEst : form.estimatedCost,
-      currency: form.currency,
-    };
-    onSave(payload);
+    if (task) {
+      const payload: UpdateTaskPayload = {
+        name: form.name,
+        description: form.description || undefined,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        currency: form.currency,
+        progress: form.progress,
+      };
+      onSave(payload);
+    } else {
+      const payload: CreateTaskPayload = {
+        name: form.name,
+        projectId: form.projectId,
+        description: form.description || undefined,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        currency: form.currency,
+      };
+      onSave(payload);
+    }
   };
 
   // ── Render
   return (
-    <div className="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-1">
+    <div className="grid grid-cols-2 gap-4">
       {/* Name */}
       <div className="col-span-2">
         <Label>Task Name *</Label>
@@ -274,23 +313,25 @@ export default function TaskForm({
         </Select>
       </div>
 
-      {/* Status */}
-      <div>
-        <Label>Status</Label>
-        <Select
-          value={form.status}
-          onValueChange={(v) => setForm({ ...form, status: v as TaskStatus })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="planned">Planned</SelectItem>
-            <SelectItem value="on_progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Status — edit mode only */}
+      {task && (
+        <div>
+          <Label>Status</Label>
+          <Select
+            value={form.status}
+            onValueChange={(v) => setForm({ ...form, status: v as TaskStatus })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="planned">Planned</SelectItem>
+              <SelectItem value="on_progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Dates */}
       <div>
@@ -326,6 +367,25 @@ export default function TaskForm({
             <SelectItem value="USD">USD</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+      {/* Progress */}
+      <div>
+        <Label>Progress (%)</Label>
+        <Input
+          type="number"
+          min={0}
+          max={100}
+          value={form.progress}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              progress: Math.min(
+                100,
+                Math.max(0, parseFloat(e.target.value) || 0),
+              ),
+            })
+          }
+        />
       </div>
 
       {/* ── Personnel */}
@@ -521,7 +581,7 @@ export default function TaskForm({
           disabled={
             saving ||
             !form.name ||
-            !form.projectId ||
+            (!task && !form.projectId) ||
             !form.startDate ||
             !form.endDate
           }

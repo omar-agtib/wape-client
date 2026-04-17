@@ -70,13 +70,13 @@ export default function Projects() {
     mutationFn: (data: FormState) => {
       const payload: CreateProjectPayload = {
         name: data.name!,
-        clientId: data.clientId,
-        description: data.description,
+        clientId: data.clientId || undefined,
+        description: data.description || undefined,
         budget: data.budget ?? 0,
         currency: data.currency ?? "MAD",
         startDate: data.startDate!,
         endDate: data.endDate!,
-        status: data.status as ProjectStatus,
+        // status omitted — backend always starts as 'planned'
       };
 
       return editing
@@ -103,11 +103,11 @@ export default function Projects() {
         currency: project.currency,
         startDate: project.startDate,
         endDate: project.endDate,
-        status: project.status,
+        // status intentionally omitted
       });
     } else {
       setEditing(null);
-      setForm({ status: "planned", budget: 0, currency: "MAD" });
+      setForm({ budget: 0, currency: "MAD" });
     }
     setShowForm(true);
   };
@@ -259,26 +259,6 @@ export default function Projects() {
                     {c.legalName}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Status */}
-          <div>
-            <Label>Status</Label>
-            <Select
-              value={form.status ?? "planned"}
-              onValueChange={(v) =>
-                setForm({ ...form, status: v as ProjectStatus })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="planned">Planned</SelectItem>
-                <SelectItem value="on_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
           </div>

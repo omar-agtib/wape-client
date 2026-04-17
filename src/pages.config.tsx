@@ -7,6 +7,29 @@ import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
 import Tasks from "./pages/Tasks";
 import TaskDetails from "./pages/TaskDetails";
+import Personnel from "./pages/Personnel";
+import Tools from "./pages/Tools";
+import Articles from "./pages/Articles";
+import Stock from "./pages/Stock";
+import PurchaseOrders from "./pages/PurchaseOrders";
+import Reception from "./pages/Reception";
+import ClientsPage from "./pages/Clients";
+import SuppliersPage from "./pages/Suppliers";
+import SubcontractorsPage from "./pages/Subcontractors";
+import DocumentsPage from "./pages/Documents";
+import PlansPage from "./pages/Plans";
+import NonConformitiesPage from "./pages/NonConformities";
+import PointageJournalierPage from "./pages/PointageJournalier";
+import RapportPresencePage from "./pages/RapportPresence";
+import ReportingPage from "./pages/Reporting";
+import AttachmentsPage from "./pages/Attachments";
+import AttachmentDetailsPage from "./pages/AttachmentDetails";
+import FinancePage from "./pages/Finance";
+import ExpensesPage from "./pages/Expenses";
+import PaymentsPage from "./pages/Payments";
+import InvoicesPage from "./pages/Invoices";
+import TrainingSupportPage from "./pages/TrainingSupport";
+import AdministrationPage from "./pages/Administration";
 
 const make = (title: string) => () => <ComingSoon title={title} />;
 
@@ -17,29 +40,29 @@ export const PAGES: Record<string, React.ComponentType> = {
   ProjectDetails,
   Tasks,
   TaskDetails,
+  Personnel,
+  Tools,
+  Articles,
+  Stock,
+  PurchaseOrders,
+  Reception,
+  Clients: ClientsPage,
+  Suppliers: SuppliersPage,
+  Subcontractors: SubcontractorsPage,
+  Documents: DocumentsPage,
+  Plans: PlansPage,
+  NonConformities: NonConformitiesPage,
+  PointageJournalier: PointageJournalierPage,
+  RapportPresence: RapportPresencePage,
+  Reporting: ReportingPage,
+  Attachments: AttachmentsPage,
+  AttachmentDetails: AttachmentDetailsPage,
+  Finance: FinancePage,
+  Expenses: ExpensesPage,
+  Payments: PaymentsPage,
+  Invoices: InvoicesPage,
+  TrainingSupport: TrainingSupportPage,
+  Administration: AdministrationPage,
 
-  // Sprint 13 — to be integrated one by one
-  Plans: make("Plans — Coming Soon"),
-  Personnel: make("Personnel"),
-  Tools: make("Tools & Equipment"),
-  Articles: make("Articles"),
-  Stock: make("Stock Management"),
-  PurchaseOrders: make("Purchase Orders"),
-  Reception: make("Reception"),
-  Finance: make("Finance"),
-  Expenses: make("Expenses"),
-  Invoices: make("Invoices"),
-  Payments: make("Payments"),
-  Clients: make("Clients"),
-  Suppliers: make("Suppliers"),
-  Subcontractors: make("Subcontractors"),
-  Attachments: make("Attachments & Validation"),
-  NonConformities: make("Non Conformities"),
-  Documents: make("Documents"),
   Communication: make("Communication — Coming Soon"),
-  Reporting: make("Reporting — Coming Soon"),
-  TrainingSupport: make("Training & Support"),
-  Administration: make("Administration"),
-  PointageJournalier: make("Pointage Journalier — Coming Soon"),
-  RapportPresence: make("Rapport de Présence — Coming Soon"),
 };

@@ -15,6 +15,8 @@ import {
   projectsService,
   contactsService,
   documentsService,
+  tasksService,
+  attachmentsService,
 } from "@/services/wape.service";
 import type { Task, Project } from "@/types/api";
 
@@ -50,29 +52,34 @@ export default function ProjectDetails() {
 
   // ── Tasks for this project
   const { data: tasksData } = useQuery({
-    queryKey: ["project-tasks", projectId],
-    queryFn: () => projectsService.getTasks(projectId!),
+    queryKey: ["tasks"],
+    queryFn: () => tasksService.list({ limit: 100 }),
     enabled: !!projectId,
   });
 
   // ── Attachments (subcontractor work orders)
-  const { data: attachmentsData } = useQuery({
-    queryKey: ["project-attachments", projectId],
-    queryFn: () => projectsService.getAttachments(projectId!),
-    enabled: !!projectId,
-  });
+  // const { data: attachmentsData } = useQuery({
+  //   queryKey: ["attachments"],
+  //   queryFn: () => attachmentsService.list({ limit: 100 }),
+  //   enabled: !!projectId,
+  // });
 
-  // ── Purchase orders linked to project
-  const { data: purchaseOrdersData } = useQuery({
-    queryKey: ["project-purchase-orders", projectId],
-    queryFn: () => projectsService.getPurchaseOrders(projectId!),
-    enabled: !!projectId,
-  });
+  // // ── Purchase orders linked to project
+  // const { data: purchaseOrdersData } = useQuery({
+  //   queryKey: ["project-purchase-orders", projectId],
+  //   queryFn: () => projectsService.getPurchaseOrders(projectId!),
+  //   enabled: !!projectId,
+  // });
 
   // ── Documents
   const { data: docsData } = useQuery({
     queryKey: ["documents", projectId],
-    queryFn: () => documentsService.list({ projectId, limit: 20 }),
+    queryFn: () =>
+      documentsService.list({
+        sourceType: "project",
+        sourceId: projectId,
+        limit: 20,
+      }),
     enabled: !!projectId,
   });
 
@@ -83,7 +90,9 @@ export default function ProjectDetails() {
     enabled: !!project?.clientId,
   });
 
-  const tasks = tasksData?.items ?? [];
+  const tasks = (tasksData?.items ?? []).filter(
+    (t: Task) => t.projectId === projectId,
+  );
   const docs = docsData?.items ?? [];
   const financeSnap =
     (finance as Project["financeSnapshot"]) ?? project?.financeSnapshot;

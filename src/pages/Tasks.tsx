@@ -10,6 +10,8 @@ import {
   personnelService,
   articlesService,
   toolsService,
+  type CreateTaskPayload,
+  type UpdateTaskPayload,
 } from "@/services/wape.service";
 import type { Task, Project, Personnel, Article, Tool } from "@/types/api";
 
@@ -51,12 +53,8 @@ export default function Tasks() {
 
   // ── Queries
   const { data: tasksData, isLoading } = useQuery({
-    queryKey: ["tasks", projectFilter],
-    queryFn: () =>
-      tasksService.list({
-        limit: 100,
-        ...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
-      }),
+    queryKey: ["tasks"],
+    queryFn: () => tasksService.list({ limit: 100 }),
   });
 
   const { data: projectsData } = useQuery({
@@ -97,10 +95,10 @@ export default function Tasks() {
 
   // ── Save (create / update) mutation
   const saveMutation = useMutation({
-    mutationFn: (data: Parameters<typeof tasksService.create>[0]) =>
+    mutationFn: (data: CreateTaskPayload | UpdateTaskPayload) =>
       editing
-        ? tasksService.update(editing.id, data)
-        : tasksService.create(data),
+        ? tasksService.update(editing.id, data as UpdateTaskPayload)
+        : tasksService.create(data as CreateTaskPayload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -120,7 +118,9 @@ export default function Tasks() {
     const matchSearch =
       !search || t.name?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || t.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchProject =
+      projectFilter === "all" || t.projectId === projectFilter;
+    return matchSearch && matchStatus && matchProject;
   });
 
   // ── Table columns

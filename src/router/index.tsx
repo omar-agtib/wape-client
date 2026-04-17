@@ -28,6 +28,7 @@ const appRoutes = [
   { path: "/finance/transactions", page: "Payments" },
   { path: "/invoices", page: "Invoices" },
   { path: "/attachments", page: "Attachments" },
+  { path: "/attachments/:id", page: "AttachmentDetails" },
   { path: "/contacts/clients", page: "Clients" },
   { path: "/contacts/suppliers", page: "Suppliers" },
   { path: "/contacts/subcontractors", page: "Subcontractors" },

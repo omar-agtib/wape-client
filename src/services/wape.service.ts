@@ -14,16 +14,17 @@ import type {
   UploadResult,
 } from "../types/api";
 
-// ── Generic helpers ───────────────────────────────────────────────────────────
-
-type ListParams = {
+// ── Generic ───────────────────────────────────────────────────────────────────
+export type ListParams = {
   page?: number;
   limit?: number;
   search?: string;
   [key: string]: unknown;
 };
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const authService = {
   register: (body: {
@@ -34,7 +35,16 @@ export const authService = {
     password: string;
   }) =>
     extractData(
-      api.post<{ success: boolean; data: unknown }>("/auth/register", body),
+      api.post<{
+        success: boolean;
+        data: {
+          accessToken: string;
+          refreshToken: string;
+          role: string;
+          userId: string;
+          tenantId: string;
+        };
+      }>("/auth/register", body),
     ),
 
   login: (body: { slug: string; email: string; password: string }) =>
@@ -86,9 +96,23 @@ export const authService = {
         };
       }>("/auth/me"),
     ),
+
+  // POST /auth/logout — invalidates refresh token on server
+  logout: (refreshToken: string) =>
+    extractData(
+      api.post<{ success: boolean; data: unknown }>(
+        "/auth/logout",
+        {},
+        {
+          headers: { Authorization: `Bearer ${refreshToken}` },
+        },
+      ),
+    ),
 };
 
-// ── Projects ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PROJECTS
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type CreateProjectPayload = {
   name: string;
@@ -98,7 +122,6 @@ export type CreateProjectPayload = {
   currency?: string;
   startDate: string;
   endDate: string;
-  status?: "planned" | "on_progress" | "completed";
 };
 
 export type UpdateProjectPayload = Partial<CreateProjectPayload>;
@@ -134,42 +157,55 @@ export const projectsService = {
 
   getFinance: (id: string) =>
     extractData(
-      api.get<{ success: boolean; data: unknown }>(`/projects/${id}/finance`),
+      api.get<{
+        success: boolean;
+        data: {
+          projectId: string;
+          projectName: string;
+          totalBudget: number;
+          totalSpent: number;
+          remainingBudget: number;
+          percentConsumed: number;
+          alertLevel: "normal" | "warning" | "critical";
+          currency: string;
+          breakdown: { personnel: number; articles: number; tools: number };
+          lastUpdatedAt: string;
+        };
+      }>(`/projects/${id}/finance`),
     ),
 
-  getTasks: (id: string, params: ListParams = {}) =>
+  getGantt: (
+    id: string,
+    params?: {
+      startDate?: string;
+      endDate?: string;
+      personnelId?: string;
+      toolId?: string;
+      articleId?: string;
+    },
+  ) =>
     extractData(
-      api.get<{ success: boolean; data: PaginatedResult<Task> }>(
-        `/projects/${id}/tasks`,
-        { params },
-      ),
+      api.get<{
+        success: boolean;
+        data: {
+          project: Partial<Project>;
+          tasks: any[];
+          meta: { totalTasks: number; filters: Record<string, string | null> };
+        };
+      }>(`/projects/${id}/gantt`, { params }),
     ),
 
-  getAttachments: (id: string, params: ListParams = {}) =>
+  getPurchaseOrders: (id: string) =>
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
-        `/projects/${id}/attachments`,
-        { params },
-      ),
-    ),
-
-  getPurchaseOrders: (id: string, params: ListParams = {}) =>
-    extractData(
-      api.get<{ success: boolean; data: PaginatedResult<PurchaseOrder> }>(
         `/projects/${id}/purchase-orders`,
-        { params },
       ),
-    ),
-
-  getGantt: (id: string, params?: Record<string, string>) =>
-    extractData(
-      api.get<{ success: boolean; data: unknown }>(`/projects/${id}/gantt`, {
-        params,
-      }),
     ),
 };
 
-// ── Tasks ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// TASKS
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type CreateTaskPayload = {
   projectId: string;
@@ -177,30 +213,31 @@ export type CreateTaskPayload = {
   description?: string;
   startDate: string;
   endDate: string;
-  status?: "planned" | "on_progress" | "completed";
-  estimatedCost?: number;
   currency?: string;
+  progress?: number;
 };
 
 export type UpdateTaskPayload = Partial<Omit<CreateTaskPayload, "projectId">>;
 
-export type TaskPersonnelPayload = {
+// ── Task resource payloads match backend DTOs exactly ─────────────────────────
+
+export type AddTaskPersonnelPayload = {
   personnelId: string;
-  plannedHours: number;
-  startDate?: string;
-  endDate?: string;
+  quantity: number; // hours
+  currency?: string;
 };
 
-export type TaskArticlePayload = {
+export type AddTaskArticlePayload = {
   articleId: string;
-  plannedQuantity: number;
+  quantity: number;
+  currency?: string;
 };
 
-export type TaskToolPayload = {
+export type AddTaskToolPayload = {
   toolId: string;
-  plannedDays: number;
-  startDate?: string;
-  endDate?: string;
+  quantity: number;
+  unitCost: number;
+  currency?: string;
 };
 
 export const tasksService = {
@@ -222,6 +259,7 @@ export const tasksService = {
       api.put<{ success: boolean; data: Task }>(`/tasks/${id}`, body),
     ),
 
+  // PATCH /tasks/:id/status — enforces state machine (planned→on_progress→completed)
   changeStatus: (id: string, status: "planned" | "on_progress" | "completed") =>
     extractData(
       api.patch<{ success: boolean; data: Task }>(`/tasks/${id}/status`, {
@@ -234,96 +272,77 @@ export const tasksService = {
       api.delete<{ success: boolean; data: unknown }>(`/tasks/${id}`),
     ),
 
-  // ── Task Personnel
-  addPersonnel: (id: string, body: TaskPersonnelPayload) =>
+  // ── Personnel
+  listPersonnel: (taskId: string) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown[] }>(
+        `/tasks/${taskId}/personnel`,
+      ),
+    ),
+
+  addPersonnel: (taskId: string, body: AddTaskPersonnelPayload) =>
     extractData(
       api.post<{ success: boolean; data: unknown }>(
-        `/tasks/${id}/personnel`,
+        `/tasks/${taskId}/personnel`,
         body,
       ),
     ),
 
-  listPersonnel: (id: string) =>
-    extractData(
-      api.get<{ success: boolean; data: unknown[] }>(`/tasks/${id}/personnel`),
-    ),
-
-  updatePersonnel: (
-    id: string,
-    rid: string,
-    body: Partial<TaskPersonnelPayload>,
-  ) =>
-    extractData(
-      api.put<{ success: boolean; data: unknown }>(
-        `/tasks/${id}/personnel/${rid}`,
-        body,
-      ),
-    ),
-
-  removePersonnel: (id: string, rid: string) =>
+  removePersonnel: (taskId: string, taskPersonnelId: string) =>
     extractData(
       api.delete<{ success: boolean; data: unknown }>(
-        `/tasks/${id}/personnel/${rid}`,
+        `/tasks/${taskId}/personnel/${taskPersonnelId}`,
       ),
     ),
 
-  // ── Task Articles
-  addArticle: (id: string, body: TaskArticlePayload) =>
+  // ── Articles
+  listArticles: (taskId: string) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown[] }>(
+        `/tasks/${taskId}/articles`,
+      ),
+    ),
+
+  addArticle: (taskId: string, body: AddTaskArticlePayload) =>
     extractData(
       api.post<{ success: boolean; data: unknown }>(
-        `/tasks/${id}/articles`,
+        `/tasks/${taskId}/articles`,
         body,
       ),
     ),
 
-  listArticles: (id: string) =>
-    extractData(
-      api.get<{ success: boolean; data: unknown[] }>(`/tasks/${id}/articles`),
-    ),
-
-  updateArticle: (id: string, rid: string, body: Partial<TaskArticlePayload>) =>
-    extractData(
-      api.put<{ success: boolean; data: unknown }>(
-        `/tasks/${id}/articles/${rid}`,
-        body,
-      ),
-    ),
-
-  removeArticle: (id: string, rid: string) =>
+  removeArticle: (taskId: string, taskArticleId: string) =>
     extractData(
       api.delete<{ success: boolean; data: unknown }>(
-        `/tasks/${id}/articles/${rid}`,
+        `/tasks/${taskId}/articles/${taskArticleId}`,
       ),
     ),
 
-  // ── Task Tools
-  addTool: (id: string, body: TaskToolPayload) =>
+  // ── Tools
+  listTools: (taskId: string) =>
     extractData(
-      api.post<{ success: boolean; data: unknown }>(`/tasks/${id}/tools`, body),
+      api.get<{ success: boolean; data: unknown[] }>(`/tasks/${taskId}/tools`),
     ),
 
-  listTools: (id: string) =>
+  addTool: (taskId: string, body: AddTaskToolPayload) =>
     extractData(
-      api.get<{ success: boolean; data: unknown[] }>(`/tasks/${id}/tools`),
-    ),
-
-  updateTool: (id: string, rid: string, body: Partial<TaskToolPayload>) =>
-    extractData(
-      api.put<{ success: boolean; data: unknown }>(
-        `/tasks/${id}/tools/${rid}`,
+      api.post<{ success: boolean; data: unknown }>(
+        `/tasks/${taskId}/tools`,
         body,
       ),
     ),
 
-  removeTool: (id: string, rid: string) =>
+  removeTool: (taskId: string, taskToolId: string) =>
     extractData(
       api.delete<{ success: boolean; data: unknown }>(
-        `/tasks/${id}/tools/${rid}`,
+        `/tasks/${taskId}/tools/${taskToolId}`,
       ),
     ),
 };
 
-// ── Personnel ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PERSONNEL
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type CreatePersonnelPayload = {
   fullName: string;
@@ -332,6 +351,7 @@ export type CreatePersonnelPayload = {
   currency?: string;
   email?: string;
   phone?: string;
+  address?: string;
 };
 
 export type UpdatePersonnelPayload = Partial<CreatePersonnelPayload>;
@@ -366,24 +386,24 @@ export const personnelService = {
     ),
 };
 
-// ── Tools ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// TOOLS
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type CreateToolPayload = {
   name: string;
   category: string;
   serialNumber?: string;
   photoUrl?: string;
-  status?: "available" | "in_use" | "maintenance" | "retired";
 };
 
 export type UpdateToolPayload = Partial<CreateToolPayload>;
 
+// RG11/RG15/RG16: movementType OUT requires available, IN requires in_use
 export type ToolMovementPayload = {
-  type: "check_out" | "check_in" | "maintenance" | "retired";
-  projectId?: string;
-  taskId?: string;
+  movementType: "OUT" | "IN";
+  responsibleId: string; // personnel ID
   notes?: string;
-  date?: string;
 };
 
 export const toolsService = {
@@ -410,14 +430,20 @@ export const toolsService = {
       api.delete<{ success: boolean; data: unknown }>(`/tools/${id}`),
     ),
 
+  // POST /tools/:id/movements — returns { movement, tool, message }
   addMovement: (id: string, body: ToolMovementPayload) =>
     extractData(
-      api.post<{ success: boolean; data: unknown }>(
-        `/tools/${id}/movements`,
-        body,
-      ),
+      api.post<{
+        success: boolean;
+        data: {
+          movement: unknown;
+          tool: { id: string; name: string; status: string };
+          message: string;
+        };
+      }>(`/tools/${id}/movements`, body),
     ),
 
+  // GET /tools/:id/movements — paginated movement history
   listMovements: (id: string, params: ListParams = {}) =>
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
@@ -427,7 +453,9 @@ export const toolsService = {
     ),
 };
 
-// ── Articles ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ARTICLES
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type CreateArticlePayload = {
   name: string;
@@ -435,7 +463,7 @@ export type CreateArticlePayload = {
   unit?: string;
   unitPrice: number;
   currency?: string;
-  stockQuantity?: number;
+  initialStock?: number; // sets stockQuantity on creation
 };
 
 export type UpdateArticlePayload = Partial<CreateArticlePayload>;
@@ -470,9 +498,12 @@ export const articlesService = {
     ),
 };
 
-// ── Stock ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// STOCK MOVEMENTS
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const stockService = {
+  // GET /stock/movements — paginated, filter by articleId / projectId / type
   movements: (params: ListParams = {}) =>
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
@@ -482,7 +513,9 @@ export const stockService = {
     ),
 };
 
-// ── Contacts ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTACTS (Clients / Suppliers / Subcontractors)
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type CreateContactPayload = {
   contactType: "supplier" | "client" | "subcontractor";
@@ -494,9 +527,16 @@ export type CreateContactPayload = {
   address?: string;
 };
 
+// contactType is immutable (RG17) — omit from update
 export type UpdateContactPayload = Partial<
   Omit<CreateContactPayload, "contactType">
 >;
+
+export type CreateContactDocumentPayload = {
+  documentName: string;
+  documentType: string;
+  fileUrl: string; // Cloudinary URL — upload first, pass URL
+};
 
 export const contactsService = {
   list: (params: ListParams = {}) =>
@@ -527,23 +567,19 @@ export const contactsService = {
       api.delete<{ success: boolean; data: unknown }>(`/contacts/${id}`),
     ),
 
-  // ── Contact Documents
-  uploadDocument: (id: string, file: File, folder = "contacts") => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return extractData(
-      api.post<{ success: boolean; data: unknown }>(
-        `/contacts/${id}/documents?folder=${folder}`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
-      ),
-    );
-  },
-
+  // ── Documents — JSON body, URL comes from /upload first
   listDocuments: (id: string) =>
     extractData(
       api.get<{ success: boolean; data: unknown[] }>(
         `/contacts/${id}/documents`,
+      ),
+    ),
+
+  addDocument: (id: string, body: CreateContactDocumentPayload) =>
+    extractData(
+      api.post<{ success: boolean; data: unknown }>(
+        `/contacts/${id}/documents`,
+        body,
       ),
     ),
 
@@ -552,7 +588,9 @@ export const contactsService = {
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<Contact> }>(
         "/contacts",
-        { params: { ...params, contactType: "client" } },
+        {
+          params: { ...params, contactType: "client" },
+        },
       ),
     ),
 
@@ -560,7 +598,9 @@ export const contactsService = {
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<Contact> }>(
         "/contacts",
-        { params: { ...params, contactType: "supplier" } },
+        {
+          params: { ...params, contactType: "supplier" },
+        },
       ),
     ),
 
@@ -568,24 +608,30 @@ export const contactsService = {
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<Contact> }>(
         "/contacts",
-        { params: { ...params, contactType: "subcontractor" } },
+        {
+          params: { ...params, contactType: "subcontractor" },
+        },
       ),
     ),
 };
 
-// ── Purchase Orders ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PURCHASE ORDERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type PurchaseOrderLine = {
+  articleId: string;
+  orderedQuantity: number;
+  unitPrice: number;
+  currency?: string;
+};
 
 export type CreatePurchaseOrderPayload = {
-  supplierId: string;
+  supplierId: string; // must be contactType=supplier (RG08)
   projectId?: string;
-  orderDate?: string;
   currency?: string;
   notes?: string;
-  items: {
-    articleId: string;
-    quantity: number;
-    unitPrice: number;
-  }[];
+  lines: PurchaseOrderLine[]; // backend field is "lines" not "items"
 };
 
 export const purchaseOrdersService = {
@@ -612,6 +658,7 @@ export const purchaseOrdersService = {
       ),
     ),
 
+  // PATCH /purchase-orders/:id/confirm → W5: creates reception rows
   confirm: (id: string) =>
     extractData(
       api.patch<{ success: boolean; data: PurchaseOrder }>(
@@ -620,7 +667,9 @@ export const purchaseOrdersService = {
     ),
 };
 
-// ── Receptions ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// RECEPTIONS
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const receptionsService = {
   list: (params: ListParams = {}) =>
@@ -631,7 +680,11 @@ export const receptionsService = {
       ),
     ),
 
-  receive: (id: string, body: { receivedQuantity: number; notes?: string }) =>
+  // POST /receptions/:id/receive → W6: increments stock, updates PO status
+  receive: (
+    id: string,
+    body: { receivedQuantity: number; notes?: string; receivedBy?: string },
+  ) =>
     extractData(
       api.post<{ success: boolean; data: unknown }>(
         `/receptions/${id}/receive`,
@@ -640,17 +693,22 @@ export const receptionsService = {
     ),
 };
 
-// ── Attachments ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ATTACHMENTS
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type CreateAttachmentPayload = {
   projectId: string;
-  taskId?: string;
-  subcontractorId: string;
-  description?: string;
-  amount: number;
+  subcontractorId?: string; // required for external (auto-invoice)
+  title: string;
   currency?: string;
-  startDate: string;
-  endDate: string;
+  taskIds: string[]; // must all be completed (RG03)
+};
+
+export type ConfirmAttachmentPayload = {
+  personnelCost?: number; // only for internal (no subcontractor)
+  articlesCost?: number;
+  toolsCost?: number;
 };
 
 export const attachmentsService = {
@@ -672,14 +730,8 @@ export const attachmentsService = {
       api.post<{ success: boolean; data: unknown }>("/attachments", body),
     ),
 
-  confirm: (
-    id: string,
-    body?: {
-      personnelCost?: number;
-      articlesCost?: number;
-      toolsCost?: number;
-    },
-  ) =>
+  // PATCH /attachments/:id/confirm → W7: calc costs, snapshot, auto-invoice if external
+  confirm: (id: string, body?: ConfirmAttachmentPayload) =>
     extractData(
       api.patch<{ success: boolean; data: unknown }>(
         `/attachments/${id}/confirm`,
@@ -688,7 +740,9 @@ export const attachmentsService = {
     ),
 };
 
-// ── Invoices ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// INVOICES
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const invoicesService = {
   list: (params: ListParams = {}) =>
@@ -704,6 +758,7 @@ export const invoicesService = {
       api.get<{ success: boolean; data: Invoice }>(`/invoices/${id}`),
     ),
 
+  // PATCH /invoices/:id/validate → W8: status pending_validation → validated, PDF generated async
   validate: (id: string) =>
     extractData(
       api.patch<{ success: boolean; data: Invoice }>(
@@ -711,22 +766,18 @@ export const invoicesService = {
       ),
     ),
 
+  // PATCH /invoices/:id/mark-paid → status validated → paid (RG19: no regression)
   markPaid: (id: string) =>
     extractData(
       api.patch<{ success: boolean; data: Invoice }>(
         `/invoices/${id}/mark-paid`,
       ),
     ),
-
-  getPdf: (id: string) =>
-    extractData(
-      api.get<{ success: boolean; data: { url: string } }>(
-        `/invoices/${id}/pdf`,
-      ),
-    ),
 };
 
-// ── Non-Conformities ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// NON-CONFORMITIES
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type CreateNcPayload = {
   projectId: string;
@@ -734,11 +785,12 @@ export type CreateNcPayload = {
   description: string;
   markerX?: number;
   markerY?: number;
+  severity?: "low" | "medium" | "high" | "critical";
+  location?: string;
+  deadline?: string;
 };
 
-export type UpdateNcPayload = Partial<
-  Omit<CreateNcPayload, "projectId"> & { planUrl?: string }
->;
+export type UpdateNcPayload = Partial<Omit<CreateNcPayload, "projectId">>;
 
 export const ncService = {
   list: (params: ListParams = {}) =>
@@ -749,11 +801,13 @@ export const ncService = {
       ),
     ),
 
+  // GET returns NC + embedded images array
   get: (id: string) =>
     extractData(
-      api.get<{ success: boolean; data: NonConformity }>(
-        `/non-conformities/${id}`,
-      ),
+      api.get<{
+        success: boolean;
+        data: NonConformity & { images: unknown[] };
+      }>(`/non-conformities/${id}`),
     ),
 
   create: (body: CreateNcPayload) =>
@@ -772,6 +826,7 @@ export const ncService = {
       ),
     ),
 
+  // PATCH /non-conformities/:id/status — state machine: open↔in_review→closed (closed is terminal)
   changeStatus: (id: string, status: "open" | "in_review" | "closed") =>
     extractData(
       api.patch<{ success: boolean; data: NonConformity }>(
@@ -787,18 +842,7 @@ export const ncService = {
       ),
     ),
 
-  uploadImage: (id: string, file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return extractData(
-      api.post<{ success: boolean; data: unknown }>(
-        `/non-conformities/${id}/images`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
-      ),
-    );
-  },
-
+  // Images — upload to /upload/image first, pass Cloudinary URL
   listImages: (id: string) =>
     extractData(
       api.get<{ success: boolean; data: unknown[] }>(
@@ -806,16 +850,46 @@ export const ncService = {
       ),
     ),
 
-  uploadPlan: (id: string, planUrl: string) =>
+  addImage: (id: string, imageUrl: string) =>
+    extractData(
+      api.post<{ success: boolean; data: unknown }>(
+        `/non-conformities/${id}/images`,
+        { imageUrl },
+      ),
+    ),
+
+  // Plan with marker position (0-100% percentages)
+  uploadPlan: (
+    id: string,
+    body: { planUrl: string; markerX?: number; markerY?: number },
+  ) =>
     extractData(
       api.patch<{ success: boolean; data: NonConformity }>(
         `/non-conformities/${id}/plan`,
-        { planUrl },
+        body,
       ),
     ),
 };
 
-// ── Documents ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// DOCUMENTS (central repository)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type CreateDocumentPayload = {
+  sourceType:
+    | "project"
+    | "task"
+    | "contact"
+    | "nc"
+    | "purchase_order"
+    | "attachment";
+  sourceId: string;
+  documentName: string;
+  fileUrl: string; // Cloudinary URL — upload first
+  fileType: "pdf" | "image" | "xlsx" | "docx" | "other";
+  fileSize: number; // bytes
+  description?: string;
+};
 
 export const documentsService = {
   list: (params: ListParams = {}) =>
@@ -831,19 +905,11 @@ export const documentsService = {
       api.get<{ success: boolean; data: unknown }>(`/documents/${id}`),
     ),
 
-  upload: (file: File, folder = "documents", meta?: Record<string, string>) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    if (meta) {
-      Object.entries(meta).forEach(([k, v]) => formData.append(k, v));
-    }
-    return extractData(
-      api.post<{ success: boolean; data: unknown }>("/documents", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        params: { folder },
-      }),
-    );
-  },
+  // POST /documents — JSON body with Cloudinary URL from /upload/file first
+  create: (body: CreateDocumentPayload) =>
+    extractData(
+      api.post<{ success: boolean; data: unknown }>("/documents", body),
+    ),
 
   delete: (id: string) =>
     extractData(
@@ -851,27 +917,62 @@ export const documentsService = {
     ),
 };
 
-// ── Finance ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// FINANCE — Subscriptions, Payments, Transactions
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type CreateSubscriptionPayload = {
+  companyName: string;
+  billingType: "monthly" | "yearly";
+  plan: "starter" | "business" | "enterprise";
+  price: number;
+  currency?: string;
+  billingStartDate: string;
+  paymentMethod: "credit_card" | "bank_transfer" | "check" | "cash";
+};
 
 export type CreateSupplierPaymentPayload = {
-  supplierId: string;
-  purchaseOrderId?: string;
+  supplierId: string; // must be contactType=supplier
+  projectId?: string;
+  invoiceNumber: string;
   amount: number;
+  dueDate: string;
   currency?: string;
-  dueDate?: string;
   notes?: string;
+};
+
+export type PaySupplierPayload = {
+  amount: number; // must be <= remaining (RG-P01)
+  paymentMethod: "credit_card" | "bank_transfer" | "check" | "cash";
+  transactionReference?: string;
 };
 
 export type CreateSubcontractorPaymentPayload = {
-  subcontractorId: string;
-  attachmentId?: string;
-  amount: number;
+  subcontractorId: string; // must be contactType=subcontractor
+  projectId: string;
+  taskId?: string;
+  invoiceId?: string;
+  contractAmount: number;
   currency?: string;
-  dueDate?: string;
   notes?: string;
 };
 
+export type PaySubcontractorPayload = {
+  amount: number; // must be <= remaining (RG-P01)
+  paymentMethod: "credit_card" | "bank_transfer" | "check" | "cash";
+  transactionReference?: string;
+};
+
+export type TransactionListParams = ListParams & {
+  paymentType?: "subscription" | "supplier" | "subcontractor";
+  status?: "pending" | "success" | "failed";
+  projectId?: string;
+  dateFrom?: string; // max range: 12 months (RG-P08)
+  dateTo?: string;
+};
+
 export const financeService = {
+  // GET /finance/dashboard → KPIs + 6-month chart + subscription status
   dashboard: () =>
     extractData(
       api.get<{ success: boolean; data: FinanceDashboard }>(
@@ -879,13 +980,15 @@ export const financeService = {
       ),
     ),
 
-  // ── Subscriptions
-  getSubscriptions: () =>
+  // ── Subscriptions ──────────────────────────────────────────────────────────
+  // GET /finance/subscriptions → single subscription for tenant
+  getSubscription: () =>
     extractData(
-      api.get<{ success: boolean; data: unknown[] }>("/finance/subscriptions"),
+      api.get<{ success: boolean; data: unknown }>("/finance/subscriptions"),
     ),
 
-  createSubscription: (body: { plan: string; [key: string]: unknown }) =>
+  // POST /finance/subscriptions → status starts as 'pending' (RG-P02: one per tenant)
+  createSubscription: (body: CreateSubscriptionPayload) =>
     extractData(
       api.post<{ success: boolean; data: unknown }>(
         "/finance/subscriptions",
@@ -893,7 +996,16 @@ export const financeService = {
       ),
     ),
 
-  // ── Supplier payments
+  // POST /finance/subscriptions/webhook → W11: gateway callback → activates subscription
+  processWebhook: (body: { transactionId: string; gatewayResponse?: object }) =>
+    extractData(
+      api.post<{ success: boolean; data: unknown }>(
+        "/finance/subscriptions/webhook",
+        body,
+      ),
+    ),
+
+  // ── Supplier Payments ──────────────────────────────────────────────────────
   listSupplierPayments: (params: ListParams = {}) =>
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
@@ -910,27 +1022,28 @@ export const financeService = {
       ),
     ),
 
-  paySupplier: (id: string, body?: { reference?: string; notes?: string }) =>
+  // POST /finance/supplier-payments/:id/pay → W13: partial or full (RG-P01/RG-P05)
+  paySupplier: (id: string, body: PaySupplierPayload) =>
     extractData(
-      api.post<{ success: boolean; data: unknown }>(
-        `/finance/supplier-payments/${id}/pay`,
-        body ?? {},
+      api.post<{
+        success: boolean;
+        data: {
+          supplierPayment: unknown;
+          transaction: unknown;
+        };
+      }>(`/finance/supplier-payments/${id}/pay`, body),
+    ),
+
+  // PATCH /finance/supplier-payments/:id/upload-invoice → attach Cloudinary PDF URL
+  attachSupplierInvoice: (id: string, fileUrl: string) =>
+    extractData(
+      api.patch<{ success: boolean; data: unknown }>(
+        `/finance/supplier-payments/${id}/upload-invoice`,
+        { fileUrl },
       ),
     ),
 
-  uploadSupplierInvoice: (id: string, file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return extractData(
-      api.patch<{ success: boolean; data: unknown }>(
-        `/finance/supplier-payments/${id}/upload-invoice`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
-      ),
-    );
-  },
-
-  // ── Subcontractor payments
+  // ── Subcontractor Payments ─────────────────────────────────────────────────
   listSubcontractorPayments: (params: ListParams = {}) =>
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
@@ -947,19 +1060,21 @@ export const financeService = {
       ),
     ),
 
-  paySubcontractor: (
-    id: string,
-    body?: { reference?: string; notes?: string },
-  ) =>
+  // POST /finance/subcontractor-payments/:id/pay → partial or full (RG-P01)
+  paySubcontractor: (id: string, body: PaySubcontractorPayload) =>
     extractData(
-      api.post<{ success: boolean; data: unknown }>(
-        `/finance/subcontractor-payments/${id}/pay`,
-        body ?? {},
-      ),
+      api.post<{
+        success: boolean;
+        data: {
+          subcontractorPayment: unknown;
+          transaction: unknown;
+        };
+      }>(`/finance/subcontractor-payments/${id}/pay`, body),
     ),
 
-  // ── Transactions
-  listTransactions: (params: ListParams = {}) =>
+  // ── Transactions (immutable ledger — RG-P03) ───────────────────────────────
+  // GET /finance/transactions → max 12 months per request (RG-P08)
+  listTransactions: (params: TransactionListParams = {}) =>
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
         "/finance/transactions",
@@ -967,27 +1082,33 @@ export const financeService = {
       ),
     ),
 
-  validateTransaction: (id: string) =>
+  // PATCH /finance/transactions/:id/validate → W12: admin/accountant only (RG-P04)
+  validateTransaction: (id: string, body?: { notes?: string }) =>
     extractData(
       api.patch<{ success: boolean; data: unknown }>(
         `/finance/transactions/${id}/validate`,
+        body ?? {},
       ),
     ),
 };
 
-// ── Tutorials ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// FORMATION — Tutorials + Support Tickets
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type CreateTutorialPayload = {
   title: string;
-  content: string;
-  category?: string;
+  category: string;
+  content: string; // HTML or Markdown
   videoUrl?: string;
-  thumbnailUrl?: string;
+  orderIndex?: number;
+  published?: boolean;
 };
 
 export type UpdateTutorialPayload = Partial<CreateTutorialPayload>;
 
 export const tutorialsService = {
+  // GET /tutorials — non-admins see published only
   list: (params: ListParams = {}) =>
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
@@ -1001,32 +1122,33 @@ export const tutorialsService = {
       api.get<{ success: boolean; data: unknown }>(`/tutorials/${id}`),
     ),
 
+  // POST /tutorials — admin only
   create: (body: CreateTutorialPayload) =>
     extractData(
       api.post<{ success: boolean; data: unknown }>("/tutorials", body),
     ),
 
+  // PUT /tutorials/:id — admin only
   update: (id: string, body: UpdateTutorialPayload) =>
     extractData(
       api.put<{ success: boolean; data: unknown }>(`/tutorials/${id}`, body),
     ),
 
+  // DELETE /tutorials/:id — admin only
   delete: (id: string) =>
     extractData(
       api.delete<{ success: boolean; data: unknown }>(`/tutorials/${id}`),
     ),
 };
 
-// ── Support Tickets ───────────────────────────────────────────────────────────
-
 export type CreateTicketPayload = {
   subject: string;
-  message: string;
-  priority?: "low" | "medium" | "high";
+  description: string; // backend field is "description" not "message"
+  priority?: "low" | "medium" | "high" | "urgent";
 };
 
 export const supportService = {
-  list: (params: ListParams = {}) =>
+  listTickets: (params: ListParams = {}) =>
     extractData(
       api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
         "/support/tickets",
@@ -1034,17 +1156,19 @@ export const supportService = {
       ),
     ),
 
-  get: (id: string) =>
+  // GET /support/tickets/:id → includes messages array
+  getTicket: (id: string) =>
     extractData(
       api.get<{ success: boolean; data: unknown }>(`/support/tickets/${id}`),
     ),
 
-  create: (body: CreateTicketPayload) =>
+  createTicket: (body: CreateTicketPayload) =>
     extractData(
       api.post<{ success: boolean; data: unknown }>("/support/tickets", body),
     ),
 
-  addMessage: (id: string, body: { message: string; attachmentUrl?: string }) =>
+  // POST /support/tickets/:id/messages — isSupportAgent auto-set from JWT role
+  addMessage: (id: string, body: { message: string }) =>
     extractData(
       api.post<{ success: boolean; data: unknown }>(
         `/support/tickets/${id}/messages`,
@@ -1052,10 +1176,8 @@ export const supportService = {
       ),
     ),
 
-  changeStatus: (
-    id: string,
-    status: "open" | "in_progress" | "resolved" | "closed",
-  ) =>
+  // PATCH /support/tickets/:id/status — admin only
+  changeStatus: (id: string, status: "open" | "in_progress" | "closed") =>
     extractData(
       api.patch<{ success: boolean; data: unknown }>(
         `/support/tickets/${id}/status`,
@@ -1064,42 +1186,317 @@ export const supportService = {
     ),
 };
 
-// ── Upload ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// UPLOAD — Cloudinary
+// ─────────────────────────────────────────────────────────────────────────────
+
+type UploadFolder =
+  | "documents"
+  | "nc-images"
+  | "nc-plans"
+  | "contact-documents"
+  | "supplier-invoices"
+  | "avatars"
+  | "invoices"
+  | "barcodes";
 
 export const uploadService = {
-  file: (file: File, folder: string) => {
-    const formData = new FormData();
-    formData.append("file", file);
+  // POST /upload/file — any document (PDF, DOCX, XLSX)
+  file: (file: File, folder: UploadFolder = "documents") => {
+    const fd = new FormData();
+    fd.append("file", file);
     return extractData(
       api.post<{ success: boolean; data: UploadResult }>(
         `/upload/file?folder=${folder}`,
-        formData,
+        fd,
         { headers: { "Content-Type": "multipart/form-data" } },
       ),
     );
   },
 
-  files: (files: File[], folder: string) => {
-    const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
+  // POST /upload/files — up to 10 files at once
+  files: (files: File[], folder: UploadFolder = "documents") => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append("files", f));
     return extractData(
       api.post<{ success: boolean; data: UploadResult[] }>(
         `/upload/files?folder=${folder}`,
-        formData,
+        fd,
         { headers: { "Content-Type": "multipart/form-data" } },
       ),
     );
   },
 
-  image: (file: File, folder: string) => {
-    const formData = new FormData();
-    formData.append("file", file);
+  // POST /upload/image — images only (JPG, PNG, WebP) — validates MIME type
+  image: (file: File, folder: UploadFolder = "nc-images") => {
+    const fd = new FormData();
+    fd.append("file", file);
     return extractData(
       api.post<{ success: boolean; data: UploadResult }>(
         `/upload/image?folder=${folder}`,
-        formData,
+        fd,
         { headers: { "Content-Type": "multipart/form-data" } },
       ),
     );
   },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USERS — Team management
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type InviteUserPayload = {
+  fullName: string;
+  email: string;
+  role: "project_manager" | "site_manager" | "accountant" | "viewer";
+  password: string;
+};
+
+export type UpdateUserPayload = {
+  fullName?: string;
+  role?: "project_manager" | "site_manager" | "accountant" | "viewer";
+  isActive?: boolean;
+};
+
+export const usersService = {
+  // GET /users/me — current user profile
+  me: () =>
+    extractData(api.get<{ success: boolean; data: unknown }>("/users/me")),
+
+  // PATCH /users/me — update own name
+  updateMe: (body: { fullName: string }) =>
+    extractData(
+      api.patch<{ success: boolean; data: unknown }>("/users/me", body),
+    ),
+
+  // GET /users — list team members (admin/PM)
+  listTeam: () =>
+    extractData(api.get<{ success: boolean; data: unknown[] }>("/users")),
+
+  // POST /users/invite — admin only
+  invite: (body: InviteUserPayload) =>
+    extractData(
+      api.post<{ success: boolean; data: unknown }>("/users/invite", body),
+    ),
+
+  // PATCH /users/:id — admin only
+  update: (id: string, body: UpdateUserPayload) =>
+    extractData(
+      api.patch<{ success: boolean; data: unknown }>(`/users/${id}`, body),
+    ),
+
+  // DELETE /users/:id — deactivates (admin only)
+  deactivate: (id: string) =>
+    extractData(
+      api.delete<{ success: boolean; data: unknown }>(`/users/${id}`),
+    ),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OPÉRATEURS
+// ─────────────────────────────────────────────────────────────────────────────
+export const operateursService = {
+  list: (params: ListParams = {}) =>
+    extractData(
+      api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
+        "/operateurs",
+        { params },
+      ),
+    ),
+  get: (id: string) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown }>(`/operateurs/${id}`),
+    ),
+  create: (body: {
+    nomComplet: string;
+    typeContrat: "cdd" | "journalier";
+    tauxJournalier?: number;
+    currency?: string;
+    cin?: string;
+    telephone?: string;
+    projetActuelId?: string;
+  }) =>
+    extractData(
+      api.post<{ success: boolean; data: unknown }>("/operateurs", body),
+    ),
+  update: (id: string, body: Record<string, unknown>) =>
+    extractData(
+      api.put<{ success: boolean; data: unknown }>(`/operateurs/${id}`, body),
+    ),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POINTAGES
+// ─────────────────────────────────────────────────────────────────────────────
+export const pointagesService = {
+  list: (params: ListParams = {}) =>
+    extractData(
+      api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
+        "/pointages",
+        { params },
+      ),
+    ),
+  get: (id: string) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown }>(`/pointages/${id}`),
+    ),
+  create: (body: {
+    operateurId: string;
+    projetId: string;
+    tacheId?: string;
+    datePointage: string;
+    heureDebut?: string;
+    heureFin?: string;
+    statutPresence: "present" | "absent" | "retard" | "demi_journee";
+    typeContrat?: "cdd" | "journalier";
+    commentaire?: string;
+  }) =>
+    extractData(
+      api.post<{ success: boolean; data: unknown }>("/pointages", body),
+    ),
+  update: (id: string, body: Record<string, unknown>) =>
+    extractData(
+      api.put<{ success: boolean; data: unknown }>(`/pointages/${id}`, body),
+    ),
+  valider: (id: string) =>
+    extractData(
+      api.patch<{ success: boolean; data: unknown }>(
+        `/pointages/${id}/valider`,
+      ),
+    ),
+  calendrier: (
+    operateurId: string,
+    mois: number,
+    annee: number,
+    projetId?: string,
+  ) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown }>("/pointages/calendrier", {
+        params: { operateurId, mois, annee, ...(projetId && { projetId }) },
+      }),
+    ),
+  stats: (params: { projetId?: string; mois?: number; annee?: number } = {}) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown }>("/pointages/stats", {
+        params,
+      }),
+    ),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLANS
+// ─────────────────────────────────────────────────────────────────────────────
+export const plansService = {
+  list: (params: ListParams = {}) =>
+    extractData(
+      api.get<{ success: boolean; data: PaginatedResult<unknown> }>("/plans", {
+        params,
+      }),
+    ),
+  get: (id: string) =>
+    extractData(api.get<{ success: boolean; data: unknown }>(`/plans/${id}`)),
+  create: (body: {
+    projetId: string;
+    nom: string;
+    categorie: string;
+    fileUrl: string;
+    fileType: string;
+    reference?: string;
+    description?: string;
+    largeurPx?: number;
+    hauteurPx?: number;
+  }) =>
+    extractData(api.post<{ success: boolean; data: unknown }>("/plans", body)),
+  update: (id: string, body: Record<string, unknown>) =>
+    extractData(
+      api.put<{ success: boolean; data: unknown }>(`/plans/${id}`, body),
+    ),
+  nouvelleVersion: (
+    id: string,
+    body: { fileUrl: string; fileType: string; commentaireVersion?: string },
+  ) =>
+    extractData(
+      api.patch<{ success: boolean; data: unknown }>(
+        `/plans/${id}/nouvelle-version`,
+        body,
+      ),
+    ),
+  getVersions: (id: string) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown[] }>(`/plans/${id}/versions`),
+    ),
+  getNonConformites: (id: string) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown[] }>(
+        `/plans/${id}/non-conformites`,
+      ),
+    ),
+  delete: (id: string) =>
+    extractData(
+      api.delete<{ success: boolean; data: unknown }>(`/plans/${id}`),
+    ),
+  listByProjet: (projetId: string) =>
+    extractData(
+      api.get<{ success: boolean; data: PaginatedResult<unknown> }>("/plans", {
+        params: { projetId, statut: "actif", limit: 100 },
+      }),
+    ),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REPORTING
+// ─────────────────────────────────────────────────────────────────────────────
+export const reportingService = {
+  overview: () =>
+    extractData(
+      api.get<{ success: boolean; data: unknown }>("/reporting/overview"),
+    ),
+  projects: () =>
+    extractData(
+      api.get<{ success: boolean; data: unknown[] }>("/reporting/projects"),
+    ),
+  tasks: (projectId?: string) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown }>("/reporting/tasks", {
+        params: projectId ? { projectId } : {},
+      }),
+    ),
+  nonConformities: () =>
+    extractData(
+      api.get<{ success: boolean; data: unknown }>(
+        "/reporting/non-conformities",
+      ),
+    ),
+  finance: (months = 6) =>
+    extractData(
+      api.get<{ success: boolean; data: unknown }>("/reporting/finance", {
+        params: { months },
+      }),
+    ),
+  stock: () =>
+    extractData(
+      api.get<{ success: boolean; data: unknown }>("/reporting/stock"),
+    ),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEALTH (public — no auth needed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const healthService = {
+  ping: () =>
+    extractData(
+      api.get<{
+        success: boolean;
+        data: {
+          status: string;
+          version: string;
+          environment: string;
+          uptime: number;
+        };
+      }>("/health/ping"),
+    ),
+
+  check: () =>
+    extractData(api.get<{ success: boolean; data: unknown }>("/health")),
 };

@@ -1,50 +1,63 @@
-// import { base44 } from "@/api/base44Client";
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-// interface UploadOptions {
-//   module?: string;
-//   projectId?: string;
-//   projectName?: string;
-//   taskId?: string;
-//   docType?: string;
-// }
+import { documentsService, uploadService } from "../../services/wape.service";
 
-// interface UploadResult {
-//   file_url: string;
-// }
+interface UploadAndRegisterOptions {
+  module?: string;
+  projectId?: string;
+  projectName?: string;
+  taskId?: string;
+  docType?: "pdf" | "image" | "xlsx" | "docx" | "other";
+  sourceType?:
+    | "project"
+    | "task"
+    | "contact"
+    | "nc"
+    | "purchase_order"
+    | "attachment";
+  sourceId?: string;
+  description?: string;
+}
 
-// /**
-//  * Uploads a file and automatically creates a Document entry.
-//  * Returns { file_url }
-//  */
-// export async function uploadAndRegister(
-//   file: File,
-//   {
-//     module = "upload",
-//     projectId,
-//     projectName,
-//     taskId,
-//     docType = "other",
-//   }: UploadOptions = {}
-// ): Promise<UploadResult> {
-//   const { file_url } = await base44.integrations.Core.UploadFile({ file });
+interface UploadResult {
+  fileUrl: string;
+}
 
-//   let user: { full_name?: string; email?: string } | null = null;
-//   try {
-//     user = await base44.auth.me();
-//   } catch (_) {}
+// ── Helper ────────────────────────────────────────────────────────────────────
 
-//   await base44.entities.Document.create({
-//     name: file.name,
-//     type: docType,
-//     file_url,
-//     source_module: module,
-//     project_id: projectId || "",
-//     project_name: projectName || "",
-//     task_id: taskId || "",
-//     author: user?.full_name || user?.email || "System",
-//     description: `Auto-imported from ${module}`,
-//     version: "1.0",
-//   });
+/**
+ * Uploads a file to Cloudinary and registers it in the documents repository.
+ * Returns { fileUrl }
+ */
+export async function uploadAndRegister(
+  file: File,
+  options: UploadAndRegisterOptions = {},
+): Promise<UploadResult> {
+  const {
+    module = "upload",
+    projectId,
+    sourceType = "project",
+    sourceId,
+    docType = "other",
+    description,
+  } = options;
 
-//   return { file_url };
-// }
+  // 1. Upload file to Cloudinary
+  const uploaded = await uploadService.file(file, "documents");
+  const fileUrl = uploaded.secureUrl ?? uploaded.url ?? "";
+
+  // 2. Register in documents if we have a sourceId
+  if (sourceId) {
+    await documentsService.create({
+      sourceType,
+      sourceId,
+      documentName: file.name,
+      fileUrl,
+      fileType: docType,
+      fileSize: file.size,
+      description: description ?? `Auto-imported from ${module}`,
+    });
+  }
+
+  return { fileUrl };
+}
