@@ -9,6 +9,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  build: {
+    cssMinify: "esbuild",
+  },
   server: {
     port: 4000,
     proxy: {
