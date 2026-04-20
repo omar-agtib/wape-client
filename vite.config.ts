@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   build: {
-    cssMinify: "esbuild",
+    cssMinify: false,
   },
   server: {
     port: 4000,
