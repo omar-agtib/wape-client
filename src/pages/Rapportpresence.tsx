@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, getDaysInMonth } from "date-fns";
+import { getDaysInMonth } from "date-fns";
 import { Download, Users, Clock, Calendar, AlertCircle } from "lucide-react";
 import {
   BarChart,
@@ -240,9 +240,18 @@ export default function RapportPresencePage() {
     queryFn: () => operateursService.list({ limit: 100 }),
   });
 
-  const pointages = (pointagesData?.items ?? []) as Pointage[];
-  const projects = (projectsData?.items ?? []) as Project[];
-  const operateurs = (operateursData?.items ?? []) as Operateur[];
+  const pointages = useMemo(
+    () => (pointagesData?.items ?? []) as Pointage[],
+    [pointagesData],
+  );
+  const projects = useMemo(
+    () => (projectsData?.items ?? []) as Project[],
+    [projectsData],
+  );
+  const operateurs = useMemo(
+    () => (operateursData?.items ?? []) as Operateur[],
+    [operateursData],
+  );
 
   const monthPrefix = `${annee}-${String(mois).padStart(2, "0")}`;
 

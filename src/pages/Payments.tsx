@@ -136,7 +136,10 @@ export default function PaymentsPage() {
     queryFn: () =>
       financeService.listTransactions({
         limit: 100,
-        paymentType: typeFilter !== "all" ? (typeFilter as any) : undefined,
+        paymentType:
+          typeFilter !== "all"
+            ? (typeFilter as "subscription" | "supplier" | "subcontractor")
+            : undefined,
       }),
   });
 
@@ -155,7 +158,10 @@ export default function PaymentsPage() {
     queryFn: () => projectsService.list({ limit: 100 }),
   });
 
-  const transactions = (transactionsData?.items ?? []) as Transaction[];
+  const transactions = useMemo(
+    () => (transactionsData?.items ?? []) as Transaction[],
+    [transactionsData],
+  );
   const subPayments = (subPaymentsData?.items ?? []) as SubcontractorPayment[];
   const subcontractors = (subcontractorsData?.items ?? []) as Contact[];
   const projects = (projectsData?.items ?? []) as Project[];

@@ -138,8 +138,8 @@ export default function AttachmentDetails() {
           id: tid,
           name: t?.name ?? tid,
           status: t?.status,
-          estimatedCost: (t as any)?.estimatedCost,
-          progress: (t as any)?.progress,
+          estimatedCost: t?.estimatedCost,
+          progress: t?.progress,
         };
       });
 
@@ -351,7 +351,7 @@ export default function AttachmentDetails() {
           </Card>
 
           {/* Invoice card */}
-          {(attachment as any).invoice && (
+          {attachment.invoice && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-semibold">
@@ -363,27 +363,22 @@ export default function AttachmentDetails() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Number:</span>
                     <span className="font-medium">
-                      {(attachment as any).invoice.invoiceNumber ?? "—"}
+                      {attachment.invoice.invoiceNumber ?? "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status:</span>
-                    <StatusBadge
-                      status={(attachment as any).invoice.status ?? "—"}
-                    />
+                    <StatusBadge status={attachment.invoice.status ?? "—"} />
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Amount:</span>
                     <span className="font-bold text-primary">
-                      {fmt(
-                        (attachment as any).invoice.amount,
-                        attachment.currency,
-                      )}
+                      {fmt(attachment.invoice.amount, attachment.currency)}
                     </span>
                   </div>
-                  {(attachment as any).invoice.pdfUrl && (
+                  {attachment.invoice.pdfUrl && (
                     <a
-                      href={(attachment as any).invoice.pdfUrl}
+                      href={attachment.invoice.pdfUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                     >

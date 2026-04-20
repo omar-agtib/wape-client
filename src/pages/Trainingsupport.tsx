@@ -22,7 +22,6 @@ import {
 import {
   tutorialsService,
   supportService,
-  authService,
   type CreateTicketPayload,
 } from "@/services/wape.service";
 
@@ -150,14 +149,8 @@ export default function TrainingSupportPage() {
     queryFn: () => tutorialsService.list({ limit: 50 }),
   });
 
-  const { data: meData } = useQuery({
-    queryKey: ["me"],
-    queryFn: () => authService.me(),
-  });
-
   const tickets = (ticketsData?.items ?? []) as Ticket[];
   const tutorials = (tutorialsData?.items ?? []) as Tutorial[];
-  const me = meData as any;
 
   // ── Mutations
   const createTicketMutation = useMutation({

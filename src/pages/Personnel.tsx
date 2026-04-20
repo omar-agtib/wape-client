@@ -90,7 +90,7 @@ export default function Personnel() {
             currency: (person.currency as FormState["currency"]) ?? "MAD",
             email: person.email ?? "",
             phone: person.phone ?? "",
-            address: (person as any).address ?? "",
+            address: person.address ?? "",
           }
         : defaultForm,
     );

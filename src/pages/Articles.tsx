@@ -45,18 +45,6 @@ const defaultForm: FormState = {
   initialStock: 0,
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function generateBarcodeId(name: string): string {
-  const base = name
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 4)
-    .padEnd(4, "X");
-  const rand = Math.floor(Math.random() * 900000) + 100000;
-  return `${base}-${rand}`;
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Articles() {
@@ -254,7 +242,7 @@ export default function Articles() {
             <div className="p-4 rounded-lg bg-muted/30 text-center">
               <p className="text-xs text-muted-foreground mb-2">Barcode</p>
               <BarcodeDisplay
-                barcodeId={generateBarcodeId(showDetail.name)}
+                barcodeId={showDetail.barcodeId}
                 articleName={showDetail.name}
                 showDownload={true}
               />

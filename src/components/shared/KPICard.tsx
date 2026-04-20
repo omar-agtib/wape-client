@@ -11,6 +11,7 @@ interface KPICardProps {
   trend?: number;
   trendLabel?: string;
   color?: ColorKey;
+  subtitle?: string;
 }
 
 const colorMap: Record<ColorKey, string> = {
@@ -28,6 +29,7 @@ export default function KPICard({
   trend,
   trendLabel,
   color = "primary",
+  subtitle,
 }: KPICardProps) {
   return (
     <Card className="p-5 hover:shadow-md transition-shadow">
@@ -35,6 +37,9 @@ export default function KPICard({
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <p className="text-2xl font-bold text-foreground">{value}</p>
+          {subtitle && (
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
+          )}
           {trendLabel && (
             <p
               className={cn(

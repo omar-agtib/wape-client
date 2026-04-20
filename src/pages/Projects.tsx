@@ -285,9 +285,9 @@ export default function Projects() {
           <div className="col-span-2">
             <Label>Budget</Label>
             <CurrencyInput
-              value={form.budget}
+              value={form.budget ?? 0}
               onChange={(v) => setForm({ ...form, budget: v })}
-              currency={form.currency}
+              currency={form.currency ?? "MAD"}
               onCurrencyChange={(c) => setForm({ ...form, currency: c })}
             />
           </div>

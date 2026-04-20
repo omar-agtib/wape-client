@@ -1,21 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Building2,
-  Mail,
-  Phone,
-  Eye,
-  Upload,
-  X,
-  ExternalLink,
-} from "lucide-react";
+import { Mail, Phone, Eye, Upload, X, ExternalLink } from "lucide-react";
 
 import {
   contactsService,
   uploadService,
   type CreateContactPayload,
   type UpdateContactPayload,
-  type CreateContactDocumentPayload,
 } from "@/services/wape.service";
 import type { Contact } from "@/types/api";
 
@@ -25,7 +16,6 @@ import FormDialog from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -44,6 +34,20 @@ interface DocUpload {
   fileUrl: string;
 }
 
+interface ContactWithDetails extends Contact {
+  ifNumber?: string;
+  iceNumber?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+interface ContactDoc {
+  documentName?: string;
+  name?: string;
+  fileUrl?: string;
+}
+
 const defaultForm: FormState = {
   legalName: "",
   ifNumber: "",
@@ -60,7 +64,9 @@ export default function SubcontractorsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
-  const [showProfile, setShowProfile] = useState<Contact | null>(null);
+  const [showProfile, setShowProfile] = useState<ContactWithDetails | null>(
+    null,
+  );
   const [uploading, setUploading] = useState(false);
   const [pendingDocs, setPendingDocs] = useState<DocUpload[]>([]);
 
@@ -79,7 +85,7 @@ export default function SubcontractorsPage() {
   });
 
   const subs = subsData?.items ?? [];
-  const viewingDocs = (viewingDocsData ?? []) as any[];
+  const viewingDocs = (viewingDocsData ?? []) as ContactDoc[];
 
   // ── Mutations
   const saveMutation = useMutation({
@@ -121,18 +127,18 @@ export default function SubcontractorsPage() {
   });
 
   // ── Helpers
-  const openForm = (sub?: Contact) => {
+  const openForm = (sub?: ContactWithDetails) => {
     setEditing(sub ?? null);
     setPendingDocs([]);
     setForm(
       sub
         ? {
             legalName: sub.legalName ?? "",
-            ifNumber: (sub as any).ifNumber ?? "",
-            iceNumber: (sub as any).iceNumber ?? "",
-            email: (sub as any).email ?? "",
-            phone: (sub as any).phone ?? "",
-            address: (sub as any).address ?? "",
+            ifNumber: sub.ifNumber ?? "",
+            iceNumber: sub.iceNumber ?? "",
+            email: sub.email ?? "",
+            phone: sub.phone ?? "",
+            address: sub.address ?? "",
           }
         : defaultForm,
     );
@@ -145,7 +151,7 @@ export default function SubcontractorsPage() {
     setUploading(true);
     try {
       const result = await uploadService.file(file, "contact-documents");
-      const fileUrl = result.secureUrl ?? result.url ?? "";
+      const fileUrl = result.secureUrl ?? "";
       setPendingDocs((prev) => [
         ...prev,
         { documentName: file.name, documentType: "other", fileUrl },
@@ -163,29 +169,29 @@ export default function SubcontractorsPage() {
   const columns = [
     {
       header: "Company",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div>
           <p className="font-medium text-foreground">{row.legalName}</p>
           <p className="text-xs text-muted-foreground">
-            {(row as any).iceNumber ?? "—"}
+            {row.iceNumber ?? "—"}
           </p>
         </div>
       ),
     },
     {
       header: "Contact",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div className="text-xs space-y-0.5">
-          {(row as any).email && (
+          {row.email && (
             <div className="flex items-center gap-1">
               <Mail className="w-3 h-3 text-muted-foreground" />
-              {(row as any).email}
+              {row.email}
             </div>
           )}
-          {(row as any).phone && (
+          {row.phone && (
             <div className="flex items-center gap-1">
               <Phone className="w-3 h-3 text-muted-foreground" />
-              {(row as any).phone}
+              {row.phone}
             </div>
           )}
         </div>
@@ -193,18 +199,17 @@ export default function SubcontractorsPage() {
     },
     {
       header: "IF / ICE",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div className="text-xs space-y-0.5">
-          {(row as any).ifNumber && (
+          {row.ifNumber && (
             <div>
-              <span className="text-muted-foreground">IF:</span>{" "}
-              {(row as any).ifNumber}
+              <span className="text-muted-foreground">IF:</span> {row.ifNumber}
             </div>
           )}
-          {(row as any).iceNumber && (
+          {row.iceNumber && (
             <div>
               <span className="text-muted-foreground">ICE:</span>{" "}
-              {(row as any).iceNumber}
+              {row.iceNumber}
             </div>
           )}
         </div>
@@ -212,7 +217,7 @@ export default function SubcontractorsPage() {
     },
     {
       header: "",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div className="flex gap-1">
           <Button
             variant="ghost"
@@ -260,34 +265,28 @@ export default function SubcontractorsPage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-muted-foreground" />
-                <span>{(showProfile as any).phone ?? "—"}</span>
+                <span>{showProfile.phone ?? "—"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-muted-foreground" />
-                <span>{(showProfile as any).email ?? "—"}</span>
+                <span>{showProfile.email ?? "—"}</span>
               </div>
-              {(showProfile as any).ifNumber && (
+              {showProfile.ifNumber && (
                 <div>
                   <span className="text-muted-foreground">IF: </span>
-                  <span className="font-medium">
-                    {(showProfile as any).ifNumber}
-                  </span>
+                  <span className="font-medium">{showProfile.ifNumber}</span>
                 </div>
               )}
-              {(showProfile as any).iceNumber && (
+              {showProfile.iceNumber && (
                 <div>
                   <span className="text-muted-foreground">ICE: </span>
-                  <span className="font-medium">
-                    {(showProfile as any).iceNumber}
-                  </span>
+                  <span className="font-medium">{showProfile.iceNumber}</span>
                 </div>
               )}
-              {(showProfile as any).address && (
+              {showProfile.address && (
                 <div className="col-span-2">
                   <span className="text-muted-foreground">Address: </span>
-                  <span className="font-medium">
-                    {(showProfile as any).address}
-                  </span>
+                  <span className="font-medium">{showProfile.address}</span>
                 </div>
               )}
             </div>
@@ -297,7 +296,7 @@ export default function SubcontractorsPage() {
               <div>
                 <h4 className="text-sm font-semibold mb-2">Documents</h4>
                 <div className="space-y-1">
-                  {viewingDocs.map((doc: any, i: number) => (
+                  {viewingDocs.map((doc, i) => (
                     <div
                       key={i}
                       className="flex items-center gap-2 p-2 rounded bg-muted/30 text-xs"

@@ -107,15 +107,16 @@ export default function PurchaseOrders() {
   });
 
   // ── Line helpers
-  const addLine = (item: { id: string; label: string }) => {
-    if (form.lines.some((l) => l.articleId === item.id)) return;
-    const found = articles.find((a) => a.id === item.id);
+  const addLine = (item: { id: string | number; label: string }) => {
+    const id = String(item.id);
+    if (form.lines.some((l) => l.articleId === id)) return;
+    const found = articles.find((a) => a.id === id);
     setForm((f) => ({
       ...f,
       lines: [
         ...f.lines,
         {
-          articleId: item.id,
+          articleId: id,
           articleName: found?.name ?? item.label,
           orderedQuantity: 1,
           unitPrice: found?.unitPrice ?? 0,
@@ -161,7 +162,7 @@ export default function PurchaseOrders() {
   };
 
   // ── Filtering
-  const filtered = orders.filter((o: any) => {
+  const filtered = (orders as PurchaseOrder[]).filter((o) => {
     const matchSearch =
       !search ||
       o.supplierId?.toLowerCase().includes(search.toLowerCase()) ||
@@ -176,25 +177,23 @@ export default function PurchaseOrders() {
       header: "Order",
       cell: (row: PurchaseOrder) => (
         <div>
-          <p className="font-medium text-foreground">
-            PO-{row.id?.slice(-6).toUpperCase()}
+          <p className="font-medium text-foreground">{row.orderNumber}</p>
+          <p className="text-xs text-muted-foreground">
+            {suppliers.find((s) => s.id === row.supplierId)?.legalName ?? "—"}
           </p>
-          <p className="text-xs text-muted-foreground">{row.supplierId}</p>
         </div>
       ),
     },
     {
       header: "Currency",
       cell: (row: PurchaseOrder) => (
-        <span className="text-xs">{(row as any).currency ?? "MAD"}</span>
+        <span className="text-xs">{row.currency ?? "MAD"}</span>
       ),
     },
     {
       header: "Date",
       cell: (row: PurchaseOrder) =>
-        (row as any).createdAt
-          ? format(new Date((row as any).createdAt), "MMM d, yyyy")
-          : "—",
+        row.createdAt ? format(new Date(row.createdAt), "MMM d, yyyy") : "—",
     },
     {
       header: "Status",
@@ -203,7 +202,7 @@ export default function PurchaseOrders() {
     {
       header: "",
       cell: (row: PurchaseOrder) =>
-        row.status === "pending" ? (
+        row.status === "draft" ? (
           <Button
             variant="ghost"
             size="sm"

@@ -108,7 +108,7 @@ export default function Dashboard() {
   // Budget usage from finance dashboard
   const totalBudget = projects.reduce((s, p) => s + (p.budget ?? 0), 0);
   const totalSpent = projects.reduce(
-    (s, p) => s + ((p as any).financeSnapshot?.totalSpent ?? 0),
+    (s, p) => s + (p.financeSnapshot?.totalSpent ?? 0),
     0,
   );
   const budgetUsage =
@@ -297,7 +297,7 @@ export default function Dashboard() {
                 />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
-                  formatter={(v: number) => [`${v}%`, "Progress"]}
+                  formatter={(v) => [`${Number(v)}%`, "Progress"]}
                 />
                 <Bar
                   dataKey="progress"
@@ -346,8 +346,8 @@ export default function Dashboard() {
                 />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
-                  formatter={(v: number) => [
-                    new Intl.NumberFormat("fr-MA").format(v),
+                  formatter={(v) => [
+                    new Intl.NumberFormat("fr-MA").format(Number(v)),
                     "Amount",
                   ]}
                 />
@@ -391,7 +391,7 @@ export default function Dashboard() {
                   outerRadius={80}
                   dataKey="value"
                   label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
+                    `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
                   }
                   labelLine={false}
                 >
@@ -437,7 +437,7 @@ export default function Dashboard() {
                   outerRadius={80}
                   dataKey="value"
                   label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
+                    `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
                   }
                   labelLine={false}
                 >

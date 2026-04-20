@@ -41,6 +41,12 @@ type ToolCategory =
   | "other";
 type MovementType = "OUT" | "IN";
 
+interface ToolMovement {
+  id?: string;
+  movementType?: string;
+  notes?: string;
+}
+
 interface ToolFormState {
   name: string;
   category: ToolCategory;
@@ -104,7 +110,7 @@ export default function Tools() {
 
   const toolsList = toolsData?.items ?? [];
   const personnelList = (personnelData?.items ?? []) as Personnel[];
-  const movements = (movementsData?.items ?? []) as any[];
+  const movements = (movementsData?.items ?? []) as ToolMovement[];
 
   // ── Mutations
   const saveMutation = useMutation({
@@ -164,7 +170,7 @@ export default function Tools() {
       const result = await uploadService.image(file, "nc-images");
       setForm((f) => ({
         ...f,
-        photoUrl: result.secureUrl ?? result.url ?? "",
+        photoUrl: result.secureUrl ?? "",
       }));
     } finally {
       setUploading(false);
@@ -272,7 +278,7 @@ export default function Tools() {
   const movementColumns = [
     {
       header: "Type",
-      cell: (row: any) => (
+      cell: (row: ToolMovement) => (
         <Badge
           variant="outline"
           className={`text-xs ${
@@ -292,7 +298,7 @@ export default function Tools() {
     },
     {
       header: "Notes",
-      cell: (row: any) => (
+      cell: (row: ToolMovement) => (
         <span className="text-xs text-muted-foreground">
           {row.notes ?? "—"}
         </span>
@@ -300,8 +306,6 @@ export default function Tools() {
     },
   ];
 
-  console.log("movements.length ==>", movements.length);
-  console.log("SelectedToolId ==>", selectedToolId);
   // ── Render
   return (
     <div className="space-y-6">

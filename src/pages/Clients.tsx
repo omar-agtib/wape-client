@@ -8,7 +8,6 @@ import {
   uploadService,
   type CreateContactPayload,
   type UpdateContactPayload,
-  type CreateContactDocumentPayload,
 } from "@/services/wape.service";
 import type { Contact, Project } from "@/types/api";
 
@@ -19,7 +18,6 @@ import FormDialog from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
@@ -41,6 +39,20 @@ interface DocUpload {
   fileUrl: string;
 }
 
+interface ContactWithDetails extends Contact {
+  ifNumber?: string;
+  iceNumber?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+interface ContactDoc {
+  documentName?: string;
+  name?: string;
+  fileUrl?: string;
+}
+
 const defaultForm: FormState = {
   legalName: "",
   ifNumber: "",
@@ -58,7 +70,9 @@ export default function ClientsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
-  const [viewingClient, setViewingClient] = useState<Contact | null>(null);
+  const [viewingClient, setViewingClient] = useState<ContactWithDetails | null>(
+    null,
+  );
   const [uploading, setUploading] = useState(false);
   const [pendingDocs, setPendingDocs] = useState<DocUpload[]>([]);
 
@@ -83,7 +97,7 @@ export default function ClientsPage() {
 
   const clients = clientsData?.items ?? [];
   const projects = (projectsData?.items ?? []) as Project[];
-  const viewingDocs = (viewingDocsData ?? []) as any[];
+  const viewingDocs = (viewingDocsData ?? []) as ContactDoc[];
 
   // ── Mutations
   const saveMutation = useMutation({
@@ -126,18 +140,18 @@ export default function ClientsPage() {
   });
 
   // ── Helpers
-  const openForm = (client?: Contact) => {
+  const openForm = (client?: ContactWithDetails) => {
     setEditing(client ?? null);
     setPendingDocs([]);
     setForm(
       client
         ? {
             legalName: client.legalName ?? "",
-            ifNumber: (client as any).ifNumber ?? "",
-            iceNumber: (client as any).iceNumber ?? "",
-            email: (client as any).email ?? "",
-            phone: (client as any).phone ?? "",
-            address: (client as any).address ?? "",
+            ifNumber: client.ifNumber ?? "",
+            iceNumber: client.iceNumber ?? "",
+            email: client.email ?? "",
+            phone: client.phone ?? "",
+            address: client.address ?? "",
             notes: "",
           }
         : defaultForm,
@@ -151,7 +165,7 @@ export default function ClientsPage() {
     setUploading(true);
     try {
       const result = await uploadService.file(file, "contact-documents");
-      const fileUrl = result.secureUrl ?? result.url ?? "";
+      const fileUrl = result.secureUrl ?? "";
       setPendingDocs((prev) => [
         ...prev,
         { documentName: file.name, documentType: "other", fileUrl },
@@ -173,29 +187,29 @@ export default function ClientsPage() {
   const columns = [
     {
       header: "Client",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div>
           <p className="font-medium text-foreground">{row.legalName}</p>
           <p className="text-xs text-muted-foreground">
-            {(row as any).iceNumber ?? "—"}
+            {row.iceNumber ?? "—"}
           </p>
         </div>
       ),
     },
     {
       header: "Email / Phone",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div className="text-xs space-y-0.5">
-          {(row as any).email && (
+          {row.email && (
             <div className="flex items-center gap-1">
               <Mail className="w-3 h-3 text-muted-foreground" />
-              {(row as any).email}
+              {row.email}
             </div>
           )}
-          {(row as any).phone && (
+          {row.phone && (
             <div className="flex items-center gap-1">
               <Phone className="w-3 h-3 text-muted-foreground" />
-              {(row as any).phone}
+              {row.phone}
             </div>
           )}
         </div>
@@ -203,18 +217,17 @@ export default function ClientsPage() {
     },
     {
       header: "IF / ICE",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div className="text-xs space-y-0.5">
-          {(row as any).ifNumber && (
+          {row.ifNumber && (
             <div>
-              <span className="text-muted-foreground">IF:</span>{" "}
-              {(row as any).ifNumber}
+              <span className="text-muted-foreground">IF:</span> {row.ifNumber}
             </div>
           )}
-          {(row as any).iceNumber && (
+          {row.iceNumber && (
             <div>
               <span className="text-muted-foreground">ICE:</span>{" "}
-              {(row as any).iceNumber}
+              {row.iceNumber}
             </div>
           )}
         </div>
@@ -222,7 +235,7 @@ export default function ClientsPage() {
     },
     {
       header: "Projects",
-      cell: (row: Contact) => {
+      cell: (row: ContactWithDetails) => {
         const count = projects.filter((p) => p.clientId === row.id).length;
         return (
           <Badge variant="outline" className="text-xs">
@@ -233,7 +246,7 @@ export default function ClientsPage() {
     },
     {
       header: "",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div className="flex gap-1">
           <Button
             variant="ghost"
@@ -282,31 +295,31 @@ export default function ClientsPage() {
               <div>
                 <span className="text-muted-foreground">IF:</span>{" "}
                 <span className="font-medium">
-                  {(viewingClient as any).ifNumber ?? "—"}
+                  {viewingClient.ifNumber ?? "—"}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">ICE:</span>{" "}
                 <span className="font-medium">
-                  {(viewingClient as any).iceNumber ?? "—"}
+                  {viewingClient.iceNumber ?? "—"}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Email:</span>{" "}
                 <span className="font-medium">
-                  {(viewingClient as any).email ?? "—"}
+                  {viewingClient.email ?? "—"}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Phone:</span>{" "}
                 <span className="font-medium">
-                  {(viewingClient as any).phone ?? "—"}
+                  {viewingClient.phone ?? "—"}
                 </span>
               </div>
               <div className="col-span-2">
                 <span className="text-muted-foreground">Address:</span>{" "}
                 <span className="font-medium">
-                  {(viewingClient as any).address ?? "—"}
+                  {viewingClient.address ?? "—"}
                 </span>
               </div>
             </div>
@@ -318,7 +331,7 @@ export default function ClientsPage() {
                   Documents ({viewingDocs.length})
                 </h4>
                 <div className="space-y-1">
-                  {viewingDocs.map((doc: any, i: number) => (
+                  {viewingDocs.map((doc, i) => (
                     <div
                       key={i}
                       className="flex items-center gap-2 p-2 rounded bg-muted/30 text-xs"

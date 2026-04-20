@@ -35,7 +35,6 @@ export async function uploadAndRegister(
 ): Promise<UploadResult> {
   const {
     module = "upload",
-    projectId,
     sourceType = "project",
     sourceId,
     docType = "other",
@@ -44,7 +43,7 @@ export async function uploadAndRegister(
 
   // 1. Upload file to Cloudinary
   const uploaded = await uploadService.file(file, "documents");
-  const fileUrl = uploaded.secureUrl ?? uploaded.url ?? "";
+  const fileUrl = uploaded.secureUrl ?? "";
 
   // 2. Register in documents if we have a sourceId
   if (sourceId) {

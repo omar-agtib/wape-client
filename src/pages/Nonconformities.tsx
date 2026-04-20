@@ -39,11 +39,6 @@ type NcStatus = "open" | "in_review" | "closed";
 type NcSeverity = "low" | "medium" | "high" | "critical";
 type ViewMode = "list" | "kanban";
 
-interface Marker {
-  x: number;
-  y: number;
-}
-
 interface FormState {
   title: string;
   projectId: string;
@@ -157,7 +152,11 @@ export default function NonConformitiesPage() {
 
   const ncs = ncsData?.items ?? [];
   const projects = (projectsData?.items ?? []) as Project[];
-  const projectPlans = ((plansData as any)?.items ?? []) as PlanRecord[];
+  interface PlansResponse {
+    items?: PlanRecord[];
+  }
+  const projectPlans = ((plansData as PlansResponse)?.items ??
+    []) as PlanRecord[];
   const selectedPlan = projectPlans.find((p) => p.id === form.planId);
   const selectedPlanUrl = selectedPlan?.fileUrl ?? "";
 
@@ -231,12 +230,12 @@ export default function NonConformitiesPage() {
             title: nc.title ?? "",
             projectId: nc.projectId ?? "",
             description: nc.description ?? "",
-            markerX: (nc as any).markerX,
-            markerY: (nc as any).markerY,
-            severity: (nc as any).severity ?? "medium",
-            location: (nc as any).location ?? "",
-            deadline: (nc as any).deadline ?? "",
-            planId: (nc as any).planId ?? "",
+            markerX: nc.markerX,
+            markerY: nc.markerY,
+            severity: (nc.severity as NcSeverity) ?? "medium",
+            location: nc.location ?? "",
+            deadline: nc.deadline ?? "",
+            planId: nc.planId ?? "",
           }
         : defaultForm,
     );
@@ -249,10 +248,7 @@ export default function NonConformitiesPage() {
     try {
       for (const file of files) {
         const result = await uploadService.image(file, "nc-images");
-        setPendingImages((prev) => [
-          ...prev,
-          result.secureUrl ?? result.url ?? "",
-        ]);
+        setPendingImages((prev) => [...prev, result.secureUrl ?? ""]);
       }
     } finally {
       setUploading(false);
@@ -264,8 +260,7 @@ export default function NonConformitiesPage() {
     const matchSearch =
       !search || nc.title?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || nc.status === statusFilter;
-    const matchSev =
-      severityFilter === "all" || (nc as any).severity === severityFilter;
+    const matchSev = severityFilter === "all" || nc.severity === severityFilter;
     return matchSearch && matchStatus && matchSev;
   });
 
@@ -276,9 +271,7 @@ export default function NonConformitiesPage() {
       cell: (row: NonConformity) => (
         <div>
           <p className="font-medium text-foreground">{row.title}</p>
-          <p className="text-xs text-muted-foreground">
-            {(row as any).location ?? ""}
-          </p>
+          <p className="text-xs text-muted-foreground">{row.location ?? ""}</p>
         </div>
       ),
     },
@@ -296,7 +289,7 @@ export default function NonConformitiesPage() {
     {
       header: "Severity",
       cell: (row: NonConformity) => {
-        const sev = (row as any).severity as NcSeverity;
+        const sev = row.severity as NcSeverity;
         return sev ? (
           <Badge
             variant="outline"
@@ -318,21 +311,19 @@ export default function NonConformitiesPage() {
     {
       header: "Deadline",
       cell: (row: NonConformity) =>
-        (row as any).deadline
-          ? format(new Date((row as any).deadline), "MMM d, yyyy")
-          : "—",
+        row.deadline ? format(new Date(row.deadline), "MMM d, yyyy") : "—",
     },
     {
       header: "",
       cell: (row: NonConformity) => (
         <div className="flex gap-1">
-          {(row as any).planUrl && (
+          {row.planUrl && (
             <Button
               variant="ghost"
               size="sm"
               className="h-8 text-xs text-primary"
               onClick={() =>
-                setPlanViewerData({ nc: row, planUrl: (row as any).planUrl })
+                setPlanViewerData({ nc: row, planUrl: row.planUrl! })
               }
             >
               View Plan
@@ -362,8 +353,8 @@ export default function NonConformitiesPage() {
       {planViewerData && (
         <PlanViewer
           planUrl={planViewerData.planUrl}
-          markerX={(planViewerData.nc as any).markerX}
-          markerY={(planViewerData.nc as any).markerY}
+          markerX={planViewerData.nc.markerX}
+          markerY={planViewerData.nc.markerY}
           onClose={() => setPlanViewerData(null)}
         />
       )}
@@ -510,7 +501,7 @@ export default function NonConformitiesPage() {
               <div>
                 <Label>Status</Label>
                 <Select
-                  value={(editing as any).status ?? "open"}
+                  value={editing.status ?? "open"}
                   onValueChange={(v) =>
                     updateStatusMutation.mutate({
                       id: editing.id,

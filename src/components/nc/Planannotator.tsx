@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -68,27 +68,6 @@ export default function PlanAnnotator({
   const [currentPath, setCurrentPath] = useState<[number, number][]>([]);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  useEffect(() => {
-    redraw();
-  }, [paths, imgLoaded, marker]);
-
-  const redraw = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    paths.forEach((p) => drawPath(ctx, p));
-
-    // Draw marker pin if set
-    if (marker && imgLoaded) {
-      const x = (marker.x / 100) * canvas.width;
-      const y = (marker.y / 100) * canvas.height;
-      ctx.font = "28px serif";
-      ctx.fillText("📍", x - 14, y + 10);
-    }
-  };
-
   const drawPath = (ctx: CanvasRenderingContext2D, p: AnnotationPath) => {
     if (!p.points?.length) return;
     ctx.save();
@@ -116,6 +95,25 @@ export default function PlanAnnotator({
     }
     ctx.restore();
   };
+
+  const redraw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    paths.forEach((p) => drawPath(ctx, p));
+    if (marker && imgLoaded) {
+      const x = (marker.x / 100) * canvas.width;
+      const y = (marker.y / 100) * canvas.height;
+      ctx.font = "28px serif";
+      ctx.fillText("📍", x - 14, y + 10);
+    }
+  }, [paths, imgLoaded, marker]);
+
+  useEffect(() => {
+    redraw();
+  }, [redraw]);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent): [number, number] => {
     const canvas = canvasRef.current!;

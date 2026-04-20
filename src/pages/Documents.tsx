@@ -137,7 +137,7 @@ export default function DocumentsPage() {
     setUploading(true);
     try {
       const result = await uploadService.file(file, "documents");
-      const fileUrl = result.secureUrl ?? result.url ?? "";
+      const fileUrl = result.secureUrl ?? "";
       setForm((f) => ({
         ...f,
         fileUrl,

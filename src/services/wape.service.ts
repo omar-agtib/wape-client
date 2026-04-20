@@ -189,7 +189,7 @@ export const projectsService = {
         success: boolean;
         data: {
           project: Partial<Project>;
-          tasks: any[];
+          tasks: unknown[];
           meta: { totalTasks: number; filters: Record<string, string | null> };
         };
       }>(`/projects/${id}/gantt`, { params }),

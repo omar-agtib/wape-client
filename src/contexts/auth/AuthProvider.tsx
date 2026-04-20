@@ -9,6 +9,7 @@ import type {
   UserRole,
 } from "../../types/api";
 import { AuthContext } from "./AuthContext";
+import { authService } from "../../services/wape.service";
 
 interface AuthState {
   user: MeResponse | null;
@@ -106,7 +107,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [fetchCurrentUser, setTokensAndUser],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const refreshToken = tokenStorage.getRefresh();
+    if (refreshToken) {
+      await authService.logout(refreshToken).catch(() => {});
+    }
     tokenStorage.clear();
     disconnectSocket();
     setState({

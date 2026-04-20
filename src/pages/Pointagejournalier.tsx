@@ -58,13 +58,17 @@ interface Pointage {
   statutPresence?: StatutPresence;
   typeContrat?: TypeContrat;
   commentaire?: string;
-  statutValidation?: string;
+  isValide?: boolean;
   validepar?: string;
-  // Computed/denormalized
   operateurNom?: string;
   projetNom?: string;
   tacheNom?: string;
   heuresTravaillees?: number;
+}
+interface PointageTask {
+  id: string;
+  name?: string;
+  projectId?: string;
 }
 
 interface PointageFormState {
@@ -146,7 +150,7 @@ function PointageForm({
   editing: Pointage | null;
   operateurs: Operateur[];
   projects: Project[];
-  tasks: any[];
+  tasks: PointageTask[];
   existingPointages: Pointage[];
   onSave: (data: PointageFormState) => void;
   onCancel: () => void;
@@ -170,7 +174,7 @@ function PointageForm({
     form.statutPresence,
   );
   const filteredTasks = tasks.filter(
-    (t: any) => !form.projetId || t.projectId === form.projetId,
+    (t) => !form.projetId || t.projectId === form.projetId,
   );
 
   const handleSave = () => {
@@ -276,7 +280,7 @@ function PointageForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Aucune tâche</SelectItem>
-              {filteredTasks.map((t: any) => (
+              {filteredTasks.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.name}
                 </SelectItem>
@@ -417,10 +421,22 @@ export default function PointageJournalierPage() {
     queryFn: () => tasksService.list({ limit: 100 }),
   });
 
-  const pointages = (pointagesData?.items ?? []) as Pointage[];
-  const operateurs = (operateursData?.items ?? []) as Operateur[];
-  const projects = (projectsData?.items ?? []) as Project[];
-  const tasks = (tasksData?.items ?? []) as any[];
+  const pointages = useMemo(
+    () => (pointagesData?.items ?? []) as Pointage[],
+    [pointagesData],
+  );
+  const operateurs = useMemo(
+    () => (operateursData?.items ?? []) as Operateur[],
+    [operateursData],
+  );
+  const projects = useMemo(
+    () => (projectsData?.items ?? []) as Project[],
+    [projectsData],
+  );
+  const tasks = useMemo(
+    () => (tasksData?.items ?? []) as PointageTask[],
+    [tasksData],
+  );
 
   const createOperateurMut = useMutation({
     mutationFn: (data: typeof operateurForm) =>
@@ -473,12 +489,6 @@ export default function PointageJournalierPage() {
     },
   });
 
-  const deleteMut = useMutation({
-    mutationFn: (id: string) =>
-      pointagesService.update(id, { statutPresence: "absent" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pointages"] }),
-  });
-
   const validateMut = useMutation({
     mutationFn: (id: string) => pointagesService.valider(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pointages"] }),
@@ -507,13 +517,26 @@ export default function PointageJournalierPage() {
         if (filterOp !== "all" && p.operateurId !== filterOp) return false;
         if (search) {
           const q = search.toLowerCase();
-          const nom = getOperateurNom(p.operateurId).toLowerCase();
-          const proj = getProjetNom(p.projetId).toLowerCase();
+          const nom = (
+            operateurs.find((o) => o.id === p.operateurId)?.nomComplet ?? ""
+          ).toLowerCase();
+          const proj = (
+            projects.find((pr) => pr.id === p.projetId)?.name ?? ""
+          ).toLowerCase();
           if (!nom.includes(q) && !proj.includes(q)) return false;
         }
         return true;
       }),
-    [pointages, filterProjet, filterDate, filterStatut, filterOp, search],
+    [
+      pointages,
+      filterProjet,
+      filterDate,
+      filterStatut,
+      filterOp,
+      search,
+      operateurs,
+      projects,
+    ],
   );
 
   // ── KPIs today
@@ -533,7 +556,7 @@ export default function PointageJournalierPage() {
       );
     }, 0),
     en_attente: pointages.filter(
-      (p) => (p as any).statutValidation === "en_attente",
+      (p) => p.isValide === false || p.isValide === undefined,
     ).length,
   };
 
@@ -731,15 +754,13 @@ export default function PointageJournalierPage() {
                 {filtered.map((p) => {
                   const sc = STATUT_CONFIG[p.statutPresence ?? "present"];
                   const vc =
-                    VALIDATION_CONFIG[
-                      (p as any).statutValidation ?? "en_attente"
-                    ];
+                    VALIDATION_CONFIG[p.isValide ? "valide" : "en_attente"];
                   const heures = calcHeures(
                     p.heureDebut ?? "",
                     p.heureFin ?? "",
                     p.statutPresence ?? "absent",
                   );
-                  const canEdit = (p as any).statutValidation !== "valide";
+                  const canEdit = !p.isValide;
                   return (
                     <tr
                       key={p.id}
@@ -781,7 +802,7 @@ export default function PointageJournalierPage() {
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex gap-1 items-center">
-                          {(p as any).statutValidation === "en_attente" && (
+                          {!p.isValide && (
                             <Button
                               size="sm"
                               variant="outline"

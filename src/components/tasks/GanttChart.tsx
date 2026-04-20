@@ -36,7 +36,6 @@ export default function GanttChart({
   tasks,
   personnel = [],
   tools = [],
-  articles = [],
 }: Props) {
   const [filterDateStart, setFilterDateStart] = useState("");
   const [filterDateEnd, setFilterDateEnd] = useState("");
@@ -57,14 +56,7 @@ export default function GanttChart({
       // so these filters apply only when the data is available.
       return true;
     });
-  }, [
-    validTasks,
-    filterDateStart,
-    filterDateEnd,
-    filterPersonnel,
-    filterTool,
-    filterArticle,
-  ]);
+  }, [validTasks, filterDateStart, filterDateEnd]);
 
   // ── Timeline bounds
   const { minDate, days } = useMemo(() => {

@@ -8,9 +8,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import {
   FolderKanban,
@@ -35,15 +32,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { Progress } from "@/components/ui/progress";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+interface ReportingOverview {
+  totalProjects?: number;
+  totalTasks?: number;
+  totalPersonnel?: number;
+  budgetConsumedPercent?: number;
+}
 
-const COLORS = [
-  "hsl(221,83%,53%)",
-  "hsl(142,71%,45%)",
-  "hsl(38,92%,50%)",
-  "hsl(0,84%,60%)",
-  "hsl(199,89%,48%)",
-];
+interface ReportingFinance {
+  monthly?: unknown[];
+}
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
@@ -91,16 +89,6 @@ export default function ReportingPage() {
     queryFn: () => reportingService.overview(),
   });
 
-  const { data: reportingTasksData } = useQuery({
-    queryKey: ["reporting-tasks"],
-    queryFn: () => reportingService.tasks(),
-  });
-
-  const { data: reportingNcData } = useQuery({
-    queryKey: ["reporting-ncs"],
-    queryFn: () => reportingService.nonConformities(),
-  });
-
   const { data: reportingFinanceData } = useQuery({
     queryKey: ["reporting-finance"],
     queryFn: () => reportingService.finance(6),
@@ -136,7 +124,7 @@ export default function ReportingPage() {
   const tasks = (tasksData?.items ?? []) as Task[];
   const tools = (toolsData?.items ?? []) as Tool[];
   const ncs = (ncsData?.items ?? []) as NonConformity[];
-  const overview = overviewData as any;
+  const overview = overviewData as ReportingOverview | undefined;
 
   // ── Task status chart — use real backend statuses
   const tasksByStatus = ["planned", "on_progress", "completed"].map((s) => ({
@@ -151,17 +139,15 @@ export default function ReportingPage() {
   const ncsBySeverity = ["low", "medium", "high", "critical"]
     .map((s) => ({
       name: s.charAt(0).toUpperCase() + s.slice(1),
-      open: ncs.filter(
-        (nc) => (nc as any).severity === s && nc.status !== "closed",
-      ).length,
-      closed: ncs.filter(
-        (nc) => (nc as any).severity === s && nc.status === "closed",
-      ).length,
+      open: ncs.filter((nc) => nc.severity === s && nc.status !== "closed")
+        .length,
+      closed: ncs.filter((nc) => nc.severity === s && nc.status === "closed")
+        .length,
     }))
     .filter((s) => s.open > 0 || s.closed > 0);
 
   // ── Finance chart from reporting endpoint
-  const financeData = (reportingFinanceData as any)?.monthly ?? [];
+  const financeData = (reportingFinanceData as ReportingFinance)?.monthly ?? [];
 
   // ── KPI values — prefer reporting overview, fallback to local counts
   const kpis = {

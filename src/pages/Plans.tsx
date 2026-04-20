@@ -87,7 +87,8 @@ export default function PlansPage() {
     queryFn: () => projectsService.list({ limit: 100 }),
   });
 
-  const plans = ((plansData as any)?.items ?? []) as PlanRecord[];
+  const plans = ((plansData as { items?: PlanRecord[] })?.items ??
+    []) as PlanRecord[];
   const projects = (projectsData?.items ?? []) as Project[];
 
   // ── Mutations
@@ -157,7 +158,7 @@ export default function PlansPage() {
     setUploading(true);
     try {
       const result = await uploadService.image(file, "nc-plans");
-      const fileUrl = result.secureUrl ?? result.url ?? "";
+      const fileUrl = result.secureUrl ?? "";
       const fileType = file.name.split(".").pop()?.toLowerCase() ?? "png";
       setForm((f) => ({ ...f, fileUrl, fileType }));
 

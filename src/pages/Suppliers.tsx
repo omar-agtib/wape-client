@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Mail, Phone, Eye, Upload, X, ExternalLink } from "lucide-react";
-import { format } from "date-fns";
 
 import {
   contactsService,
@@ -9,7 +8,6 @@ import {
   uploadService,
   type CreateContactPayload,
   type UpdateContactPayload,
-  type CreateContactDocumentPayload,
 } from "@/services/wape.service";
 import type { Contact, PurchaseOrder } from "@/types/api";
 
@@ -20,15 +18,7 @@ import FormDialog from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,6 +37,20 @@ interface DocUpload {
   fileUrl: string;
 }
 
+interface ContactWithDetails extends Contact {
+  ifNumber?: string;
+  iceNumber?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+interface ContactDoc {
+  documentName?: string;
+  name?: string;
+  fileUrl?: string;
+}
+
 const defaultForm: FormState = {
   legalName: "",
   ifNumber: "",
@@ -63,7 +67,8 @@ export default function SuppliersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
-  const [viewingSupplier, setViewingSupplier] = useState<Contact | null>(null);
+  const [viewingSupplier, setViewingSupplier] =
+    useState<ContactWithDetails | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pendingDocs, setPendingDocs] = useState<DocUpload[]>([]);
 
@@ -88,7 +93,7 @@ export default function SuppliersPage() {
 
   const suppliers = suppliersData?.items ?? [];
   const purchaseOrders = (ordersData?.items ?? []) as PurchaseOrder[];
-  const viewingDocs = (viewingDocsData ?? []) as any[];
+  const viewingDocs = (viewingDocsData ?? []) as ContactDoc[];
 
   // ── Mutations
   const saveMutation = useMutation({
@@ -130,18 +135,18 @@ export default function SuppliersPage() {
   });
 
   // ── Helpers
-  const openForm = (supplier?: Contact) => {
+  const openForm = (supplier?: ContactWithDetails) => {
     setEditing(supplier ?? null);
     setPendingDocs([]);
     setForm(
       supplier
         ? {
             legalName: supplier.legalName ?? "",
-            ifNumber: (supplier as any).ifNumber ?? "",
-            iceNumber: (supplier as any).iceNumber ?? "",
-            email: (supplier as any).email ?? "",
-            phone: (supplier as any).phone ?? "",
-            address: (supplier as any).address ?? "",
+            ifNumber: supplier.ifNumber ?? "",
+            iceNumber: supplier.iceNumber ?? "",
+            email: supplier.email ?? "",
+            phone: supplier.phone ?? "",
+            address: supplier.address ?? "",
           }
         : defaultForm,
     );
@@ -154,7 +159,7 @@ export default function SuppliersPage() {
     setUploading(true);
     try {
       const result = await uploadService.file(file, "contact-documents");
-      const fileUrl = result.secureUrl ?? result.url ?? "";
+      const fileUrl = result.secureUrl ?? "";
       setPendingDocs((prev) => [
         ...prev,
         { documentName: file.name, documentType: "other", fileUrl },
@@ -176,29 +181,29 @@ export default function SuppliersPage() {
   const columns = [
     {
       header: "Supplier",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div>
           <p className="font-medium text-foreground">{row.legalName}</p>
           <p className="text-xs text-muted-foreground">
-            {(row as any).iceNumber ?? "—"}
+            {row.iceNumber ?? "—"}
           </p>
         </div>
       ),
     },
     {
       header: "Email / Phone",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div className="text-xs space-y-0.5">
-          {(row as any).email && (
+          {row.email && (
             <div className="flex items-center gap-1">
               <Mail className="w-3 h-3 text-muted-foreground" />
-              {(row as any).email}
+              {row.email}
             </div>
           )}
-          {(row as any).phone && (
+          {row.phone && (
             <div className="flex items-center gap-1">
               <Phone className="w-3 h-3 text-muted-foreground" />
-              {(row as any).phone}
+              {row.phone}
             </div>
           )}
         </div>
@@ -206,18 +211,17 @@ export default function SuppliersPage() {
     },
     {
       header: "IF / ICE",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div className="text-xs space-y-0.5">
-          {(row as any).ifNumber && (
+          {row.ifNumber && (
             <div>
-              <span className="text-muted-foreground">IF:</span>{" "}
-              {(row as any).ifNumber}
+              <span className="text-muted-foreground">IF:</span> {row.ifNumber}
             </div>
           )}
-          {(row as any).iceNumber && (
+          {row.iceNumber && (
             <div>
               <span className="text-muted-foreground">ICE:</span>{" "}
-              {(row as any).iceNumber}
+              {row.iceNumber}
             </div>
           )}
         </div>
@@ -225,7 +229,7 @@ export default function SuppliersPage() {
     },
     {
       header: "Orders",
-      cell: (row: Contact) => {
+      cell: (row: ContactWithDetails) => {
         const count = purchaseOrders.filter(
           (o) => o.supplierId === row.id,
         ).length;
@@ -238,7 +242,7 @@ export default function SuppliersPage() {
     },
     {
       header: "",
-      cell: (row: Contact) => (
+      cell: (row: ContactWithDetails) => (
         <div className="flex gap-1">
           <Button
             variant="ghost"
@@ -287,31 +291,31 @@ export default function SuppliersPage() {
               <div>
                 <span className="text-muted-foreground">IF:</span>{" "}
                 <span className="font-medium">
-                  {(viewingSupplier as any).ifNumber ?? "—"}
+                  {viewingSupplier.ifNumber ?? "—"}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">ICE:</span>{" "}
                 <span className="font-medium">
-                  {(viewingSupplier as any).iceNumber ?? "—"}
+                  {viewingSupplier.iceNumber ?? "—"}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Email:</span>{" "}
                 <span className="font-medium">
-                  {(viewingSupplier as any).email ?? "—"}
+                  {viewingSupplier.email ?? "—"}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Phone:</span>{" "}
                 <span className="font-medium">
-                  {(viewingSupplier as any).phone ?? "—"}
+                  {viewingSupplier.phone ?? "—"}
                 </span>
               </div>
               <div className="col-span-2">
                 <span className="text-muted-foreground">Address:</span>{" "}
                 <span className="font-medium">
-                  {(viewingSupplier as any).address ?? "—"}
+                  {viewingSupplier.address ?? "—"}
                 </span>
               </div>
             </div>
@@ -323,7 +327,7 @@ export default function SuppliersPage() {
                   Documents ({viewingDocs.length})
                 </h4>
                 <div className="space-y-1">
-                  {viewingDocs.map((doc: any, i: number) => (
+                  {viewingDocs.map((doc, i) => (
                     <div
                       key={i}
                       className="flex items-center gap-2 p-2 rounded bg-muted/30 text-xs"

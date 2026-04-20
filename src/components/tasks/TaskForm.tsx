@@ -6,7 +6,6 @@ import {
   personnelService,
   articlesService,
   toolsService,
-  contactsService,
   type CreateTaskPayload,
   type UpdateTaskPayload,
 } from "@/services/wape.service";
@@ -114,11 +113,6 @@ export default function TaskForm({
     queryFn: () => toolsService.list({ limit: 100 }),
   });
 
-  const { data: subsData } = useQuery({
-    queryKey: ["subcontractors"],
-    queryFn: () => contactsService.listSubcontractors({ limit: 100 }),
-  });
-
   const personnelList = (personnelData?.items ?? []) as Personnel[];
   const articlesList = (articlesData?.items ?? []) as Article[];
   const toolsList = (toolsData?.items ?? []) as Tool[];
@@ -132,13 +126,13 @@ export default function TaskForm({
         costPerHour: 0,
         currency: form.currency as "MAD" | "USD" | "EUR" | "GBP",
       }),
-    onSuccess: (created) => {
+    onSuccess: (created: Personnel) => {
       queryClient.invalidateQueries({ queryKey: ["personnel"] });
       setPersonnelRows((prev) => [
         ...prev,
         {
-          personnelId: (created as any).id,
-          fullName: (created as any).fullName,
+          personnelId: created.id,
+          fullName: created.fullName,
           plannedHours: 8,
           costPerHour: 0,
         },
@@ -154,13 +148,13 @@ export default function TaskForm({
         unitPrice: 0,
         currency: form.currency as "MAD" | "USD" | "EUR" | "GBP",
       }),
-    onSuccess: (created) => {
+    onSuccess: (created: Article) => {
       queryClient.invalidateQueries({ queryKey: ["articles"] });
       setArticleRows((prev) => [
         ...prev,
         {
-          articleId: (created as any).id,
-          name: (created as any).name,
+          articleId: created.id,
+          name: created.name,
           plannedQuantity: 1,
           unitPrice: 0,
         },
@@ -169,13 +163,14 @@ export default function TaskForm({
   });
 
   // ── Personnel helpers
-  const addPersonnel = (item: { id: string; label: string }) => {
-    if (personnelRows.some((r) => r.personnelId === item.id)) return;
-    const found = personnelList.find((p) => p.id === item.id);
+  const addPersonnel = (item: { id: string | number; label: string }) => {
+    const id = String(item.id);
+    if (personnelRows.some((r) => r.personnelId === id)) return;
+    const found = personnelList.find((p) => p.id === id);
     setPersonnelRows((prev) => [
       ...prev,
       {
-        personnelId: item.id,
+        personnelId: id,
         fullName: found?.fullName ?? item.label,
         plannedHours: 8,
         costPerHour: found?.costPerHour ?? 0,
@@ -196,13 +191,14 @@ export default function TaskForm({
   };
 
   // ── Article helpers
-  const addArticle = (item: { id: string; label: string }) => {
-    if (articleRows.some((r) => r.articleId === item.id)) return;
-    const found = articlesList.find((a) => a.id === item.id);
+  const addArticle = (item: { id: string | number; label: string }) => {
+    const id = String(item.id);
+    if (articleRows.some((r) => r.articleId === id)) return;
+    const found = articlesList.find((a) => a.id === id);
     setArticleRows((prev) => [
       ...prev,
       {
-        articleId: item.id,
+        articleId: id,
         name: found?.name ?? item.label,
         plannedQuantity: 1,
         unitPrice: found?.unitPrice ?? 0,
@@ -224,13 +220,14 @@ export default function TaskForm({
   };
 
   // ── Tool helpers
-  const addTool = (item: { id: string; label: string }) => {
-    if (toolRows.some((r) => r.toolId === item.id)) return;
-    const found = toolsList.find((t) => t.id === item.id);
+  const addTool = (item: { id: string | number; label: string }) => {
+    const id = String(item.id);
+    if (toolRows.some((r) => r.toolId === id)) return;
+    const found = toolsList.find((t) => t.id === id);
     setToolRows((prev) => [
       ...prev,
       {
-        toolId: item.id,
+        toolId: id,
         name: found?.name ?? item.label,
         plannedDays: 1,
       },

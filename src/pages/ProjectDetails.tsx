@@ -16,7 +16,6 @@ import {
   contactsService,
   documentsService,
   tasksService,
-  attachmentsService,
 } from "@/services/wape.service";
 import type { Task, Project } from "@/types/api";
 
@@ -25,6 +24,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import StatusBadge from "@/components/shared/StatusBadge";
 
+interface DocRecord {
+  id?: string;
+  documentName?: string;
+  fileUrl?: string;
+}
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmt(amount: number, currency = "MAD") {
@@ -53,7 +57,7 @@ export default function ProjectDetails() {
   // ── Tasks for this project
   const { data: tasksData } = useQuery({
     queryKey: ["tasks"],
-    queryFn: () => tasksService.list({ limit: 100 }),
+    queryFn: () => tasksService.list({ limit: 100, projectId }),
     enabled: !!projectId,
   });
 
@@ -348,25 +352,19 @@ export default function ProjectDetails() {
             </p>
           ) : (
             <div className="space-y-2">
-              {docs.map((d: Record<string, unknown>) => (
+              {(docs as DocRecord[]).map((d) => (
                 <div
-                  key={d.id as string}
+                  key={d.id}
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
                 >
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm">
-                      {(d.name as string) ??
-                        (d.originalFilename as string) ??
-                        "Document"}
+                      {d.documentName ?? "Document"}
                     </span>
                   </div>
-                  {d.url || d.secureUrl ? (
-                    <a
-                      href={(d.url ?? d.secureUrl) as string}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                  {d.fileUrl ? (
+                    <a href={d.fileUrl} target="_blank" rel="noreferrer">
                       <Button variant="ghost" size="sm" className="text-xs h-7">
                         Open
                       </Button>

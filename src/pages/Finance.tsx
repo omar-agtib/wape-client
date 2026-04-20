@@ -41,6 +41,40 @@ const COLORS = [
   "hsl(199,89%,48%)",
 ];
 
+interface FinanceDashboardRaw {
+  currency?: string;
+  totalBudget?: number;
+  totalSpent?: number;
+  remainingBudget?: number;
+  percentConsumed?: number;
+  monthly?: unknown[];
+  monthlyChart?: unknown[];
+  supplierPaymentsTotal?: number;
+  subcontractorPaymentsTotal?: number;
+  subscriptionTotal?: number;
+  subscription?: {
+    status?: string;
+    daysUntilRenewal?: number;
+  };
+  projects?: ProjectFinance[];
+  kpis?: {
+    totalPaymentsThisMonth?: number;
+    pendingSupplierAmount?: number;
+    pendingSubcontractorAmount?: number;
+    overduePayments?: number;
+  };
+}
+
+interface ProjectFinance {
+  id: string;
+  name: string;
+  status?: string;
+  budget?: number;
+  spent?: number;
+  currency?: string;
+  percentConsumed?: number;
+}
+
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
 function KPICard({
@@ -102,7 +136,7 @@ export default function FinancePage() {
     queryFn: () => projectsService.list({ limit: 100 }),
   });
 
-  const dashboard = dashboardRaw as any;
+  const dashboard = dashboardRaw as FinanceDashboardRaw | undefined;
   const projects = (projectsData?.items ?? []) as Project[];
 
   const currency = dashboard?.currency ?? "MAD";
@@ -136,26 +170,27 @@ export default function FinancePage() {
   ].filter(Boolean) as { name: string; value: number }[];
 
   // Subscription status
-  const subscription = dashboard?.subscription as any;
+  const subscription = dashboard?.subscription;
 
   // Per-project from dashboard or fallback
-  const projectFinance = (dashboard?.projects ??
+  const projectFinance: ProjectFinance[] =
+    dashboard?.projects ??
     projects.map((p) => ({
       id: p.id,
       name: p.name,
       status: p.status,
-      budget: (p as any).budget ?? 0,
+      budget: p.budget ?? 0,
       spent: 0,
-      currency: (p as any).currency ?? "MAD",
+      currency: p.currency ?? "MAD",
       percentConsumed: 0,
-    }))) as any[];
+    }));
 
   return (
     <div className="space-y-6">
       {/* Subscription alert */}
       {subscription &&
         subscription.status === "active" &&
-        subscription.daysUntilRenewal <= 7 && (
+        (subscription.daysUntilRenewal ?? 8) <= 7 && (
           <div className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-sm">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>
@@ -293,7 +328,7 @@ export default function FinancePage() {
                       border: "1px solid hsl(var(--border))",
                       background: "hsl(var(--card))",
                     }}
-                    formatter={(v: number) => fmt(v, currency)}
+                    formatter={(v) => fmt(Number(v), currency)}
                   />
                   <Legend />
                   <Bar
@@ -336,7 +371,7 @@ export default function FinancePage() {
                     outerRadius={110}
                     dataKey="value"
                     label={({ name, percent }) =>
-                      `${name} ${(percent * 100).toFixed(0)}%`
+                      `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
                     }
                     labelLine={false}
                   >
@@ -344,7 +379,7 @@ export default function FinancePage() {
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => fmt(v, currency)} />
+                  <Tooltip formatter={(v) => fmt(Number(v), currency)} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -366,10 +401,12 @@ export default function FinancePage() {
                 No projects
               </p>
             )}
-            {projectFinance.map((p: any) => {
+            {projectFinance.map((p) => {
               const pct =
                 p.percentConsumed ??
-                (p.budget > 0 ? Math.round((p.spent / p.budget) * 100) : 0);
+                ((p.budget ?? 0) > 0
+                  ? Math.round(((p.spent ?? 0) / (p.budget ?? 1)) * 100)
+                  : 0);
               return (
                 <div key={p.id} className="space-y-1">
                   <div className="flex items-center justify-between">

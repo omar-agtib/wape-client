@@ -37,6 +37,14 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface MeUser {
+  id: string;
+  fullName?: string;
+  email?: string;
+  role?: string;
+  lastLoginAt?: string;
+}
+
 interface TeamUser {
   id: string;
   fullName?: string;
@@ -98,7 +106,7 @@ export default function AdministrationPage() {
   });
 
   const users = (usersRaw ?? []) as TeamUser[];
-  const me = meData as any;
+  const me = meData as MeUser | undefined;
   const projects = (projectsData?.items ?? []) as Project[];
   const tasks = (tasksData?.items ?? []) as Task[];
   const personnel = (personnelData?.items ?? []) as Personnel[];
@@ -132,7 +140,10 @@ export default function AdministrationPage() {
   // ── Helpers
   const openEdit = (user: TeamUser) => {
     setEditingUser(user);
-    setEditForm({ fullName: user.fullName, role: user.role as any });
+    setEditForm({
+      fullName: user.fullName,
+      role: user.role as UpdateUserPayload["role"],
+    });
     setShowEditForm(true);
   };
 
@@ -248,7 +259,7 @@ export default function AdministrationPage() {
                 </div>
                 <Badge
                   variant="outline"
-                  className={`text-xs ${ROLE_COLORS[me.role] ?? ""}`}
+                  className={`text-xs ${ROLE_COLORS[me.role ?? "viewer"] ?? ""}`}
                 >
                   {me.role}
                 </Badge>

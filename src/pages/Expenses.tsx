@@ -177,7 +177,7 @@ export default function ExpensesPage() {
     setUploading(true);
     try {
       const result = await uploadService.file(file, "supplier-invoices");
-      const url = result.secureUrl ?? result.url ?? "";
+      const url = result.secureUrl ?? "";
       if (paymentId) {
         attachInvoiceMutation.mutate({ id: paymentId, fileUrl: url });
       } else {

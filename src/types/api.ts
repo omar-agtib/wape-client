@@ -130,6 +130,7 @@ export interface Personnel {
   currency: string;
   email?: string;
   phone?: string;
+  address?: string;
   createdAt: string;
 }
 
@@ -209,17 +210,15 @@ export type InvoiceStatus = "pending_validation" | "validated" | "paid";
 export interface Invoice {
   id: string;
   tenantId: string;
-  invoiceNumber: string;
-  attachmentId: string;
-  subcontractorId: string;
-  projectId: string;
-  amount: number;
-  currency: string;
-  status: InvoiceStatus;
+  invoiceNumber?: string;
+  status?: string;
+  amount?: number;
+  currency?: string;
+  recipient?: string;
+  type?: string;
   pdfUrl?: string;
-  issuedAt: string;
-  validatedAt?: string;
-  paidAt?: string;
+  issuedAt?: string;
+  createdAt?: string;
 }
 
 // ── Non-Conformities ──────────────────────────────────────────────────────────
@@ -237,6 +236,10 @@ export interface NonConformity {
   markerY?: number;
   reportedBy: string;
   createdAt: string;
+  severity?: string;
+  location?: string;
+  deadline?: string;
+  planId?: string;
 }
 
 // ── Finance ───────────────────────────────────────────────────────────────────
