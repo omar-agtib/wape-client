@@ -31,6 +31,8 @@ import {
   FileBarChart2,
 } from "lucide-react";
 import { cn, createPageUrl } from "../../lib/utils";
+import { useAuth } from "../../hooks/useAuth";
+import type { UserRole } from "../../lib/permissions";
 
 // ── Nav item types ─────────────────────────────────────────────────────────────
 
@@ -39,12 +41,14 @@ interface NavLeaf {
   icon: React.ElementType;
   page: string;
   badge?: string;
+  roles?: UserRole[];
 }
 
 interface NavGroup {
   name: string;
   icon: React.ElementType;
   children: NavLeaf[];
+  roles?: UserRole[];
 }
 
 type NavItem = NavLeaf | NavGroup;
@@ -53,74 +57,141 @@ function isGroup(item: NavItem): item is NavGroup {
   return "children" in item;
 }
 
+// ── Role constants ─────────────────────────────────────────────────────────────
+
+const ALL: UserRole[] = [
+  "admin",
+  "project_manager",
+  "site_manager",
+  "accountant",
+  "viewer",
+];
+const MANAGERS: UserRole[] = ["admin", "project_manager", "site_manager"];
+const FINANCE: UserRole[] = ["admin", "accountant"];
+const PM_ONLY: UserRole[] = ["admin", "project_manager"];
+const ADMIN_ONLY: UserRole[] = ["admin"];
+
 // ── Navigation config ─────────────────────────────────────────────────────────
 
 const navItems: NavItem[] = [
-  { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard" },
-  { name: "Projects", icon: FolderKanban, page: "Projects" },
-  { name: "Plans", icon: Map, page: "Plans" },
-  { name: "Tasks", icon: CheckSquare, page: "Tasks" },
+  { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard", roles: ALL },
+  { name: "Projects", icon: FolderKanban, page: "Projects", roles: ALL },
+  { name: "Plans", icon: Map, page: "Plans", roles: MANAGERS },
+  { name: "Tasks", icon: CheckSquare, page: "Tasks", roles: MANAGERS },
   {
     name: "Resources",
     icon: Users,
+    roles: PM_ONLY,
     children: [
-      { name: "Personnel", icon: Users, page: "Personnel" },
-      { name: "Tools", icon: Wrench, page: "Tools" },
+      { name: "Personnel", icon: Users, page: "Personnel", roles: PM_ONLY },
+      { name: "Tools", icon: Wrench, page: "Tools", roles: MANAGERS },
     ],
   },
   {
     name: "Warehouse",
     icon: Package,
+    roles: MANAGERS,
     children: [
-      { name: "Articles", icon: ShoppingCart, page: "Articles" },
-      { name: "Stock", icon: Package, page: "Stock" },
-      { name: "Purchase Orders", icon: ClipboardList, page: "PurchaseOrders" },
-      { name: "Reception", icon: Truck, page: "Reception" },
+      {
+        name: "Articles",
+        icon: ShoppingCart,
+        page: "Articles",
+        roles: MANAGERS,
+      },
+      { name: "Stock", icon: Package, page: "Stock", roles: MANAGERS },
+      {
+        name: "Purchase Orders",
+        icon: ClipboardList,
+        page: "PurchaseOrders",
+        roles: FINANCE,
+      },
+      { name: "Reception", icon: Truck, page: "Reception", roles: MANAGERS },
     ],
   },
   {
     name: "Finance",
     icon: DollarSign,
+    roles: FINANCE,
     children: [
-      { name: "Finance", icon: DollarSign, page: "Finance" },
-      { name: "Invoices", icon: Receipt, page: "Invoices" },
-      { name: "Payments", icon: CreditCard, page: "Payments" },
-      { name: "Expenses", icon: Receipt, page: "Expenses" },
+      { name: "Finance", icon: DollarSign, page: "Finance", roles: FINANCE },
+      { name: "Invoices", icon: Receipt, page: "Invoices", roles: FINANCE },
+      { name: "Payments", icon: CreditCard, page: "Payments", roles: FINANCE },
+      { name: "Expenses", icon: Receipt, page: "Expenses", roles: FINANCE },
     ],
   },
   {
     name: "Contacts",
     icon: UserSquare,
+    roles: MANAGERS,
     children: [
-      { name: "Clients", icon: UserSquare, page: "Clients" },
-      { name: "Suppliers", icon: Factory, page: "Suppliers" },
-      { name: "Subcontractors", icon: Building2, page: "Subcontractors" },
+      { name: "Clients", icon: UserSquare, page: "Clients", roles: MANAGERS },
+      { name: "Suppliers", icon: Factory, page: "Suppliers", roles: MANAGERS },
+      {
+        name: "Subcontractors",
+        icon: Building2,
+        page: "Subcontractors",
+        roles: MANAGERS,
+      },
     ],
   },
   {
     name: "Pointage",
     icon: CalendarCheck,
+    roles: MANAGERS,
     children: [
       {
         name: "Pointage Journalier",
         icon: CalendarCheck,
         page: "PointageJournalier",
+        roles: MANAGERS,
       },
       {
         name: "Rapport de Présence",
         icon: FileBarChart2,
         page: "RapportPresence",
+        roles: MANAGERS,
       },
     ],
   },
-  { name: "Documents", icon: FileText, page: "Documents" },
-  { name: "Non Conformities", icon: AlertTriangle, page: "NonConformities" },
-  { name: "Attachments", icon: Paperclip, page: "Attachments" },
-  { name: "Communication", icon: MessageSquare, page: "Communication" },
-  { name: "Reporting", icon: BarChart3, page: "Reporting" },
-  { name: "Training & Support", icon: LifeBuoy, page: "TrainingSupport" },
-  { name: "Administration", icon: Settings, page: "Administration" },
+  { name: "Documents", icon: FileText, page: "Documents", roles: ALL },
+  {
+    name: "Non Conformities",
+    icon: AlertTriangle,
+    page: "NonConformities",
+    roles: MANAGERS,
+  },
+  { name: "Attachments", icon: Paperclip, page: "Attachments", roles: FINANCE },
+  {
+    name: "Communication",
+    icon: MessageSquare,
+    page: "Communication",
+    roles: ALL,
+  },
+  { name: "Reporting", icon: BarChart3, page: "Reporting", roles: PM_ONLY },
+  {
+    name: "Training & Support",
+    icon: LifeBuoy,
+    page: "TrainingSupport",
+    roles: ALL,
+  },
+  {
+    name: "Administration",
+    icon: Settings,
+    page: "Administration",
+    roles: ADMIN_ONLY,
+  },
 ];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function canSee(
+  itemRoles: UserRole[] | undefined,
+  role: string | null,
+): boolean {
+  if (!itemRoles) return true;
+  if (!role) return false;
+  return itemRoles.includes(role as UserRole);
+}
 
 // ── Sidebar component ─────────────────────────────────────────────────────────
 
@@ -131,6 +202,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
+  const { role } = useAuth();
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["Resources"]);
 
   const toggleGroup = (name: string) => {
@@ -145,6 +217,19 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const isGroupActive = (item: NavGroup) =>
     item.children.some((child) => isPathActive(child.page));
+
+  // Filter top-level items by role
+  const visibleItems = navItems.filter((item) => {
+    if (!canSee(item.roles, role)) return false;
+    if (isGroup(item)) {
+      // Show group only if at least one child is visible
+      const visibleChildren = item.children.filter((child) =>
+        canSee(child.roles, role),
+      );
+      return visibleChildren.length > 0;
+    }
+    return true;
+  });
 
   return (
     <>
@@ -178,10 +263,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5 scrollbar-thin">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             if (isGroup(item)) {
               const groupExpanded = expandedGroups.includes(item.name);
               const groupActive = isGroupActive(item);
+              const visibleChildren = item.children.filter((child) =>
+                canSee(child.roles, role),
+              );
 
               return (
                 <div key={item.name}>
@@ -211,7 +299,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
                   {!collapsed && groupExpanded && (
                     <div className="ml-4 pl-4 border-l border-sidebar-muted/50 mt-0.5 space-y-0.5">
-                      {item.children.map((child) => {
+                      {visibleChildren.map((child) => {
                         const active = isPathActive(child.page);
                         return (
                           <Link

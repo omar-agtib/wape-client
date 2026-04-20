@@ -3,6 +3,7 @@ import axios, {
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from "axios";
+import { toast } from "sonner";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api";
 
@@ -89,6 +90,12 @@ api.interceptors.response.use(
     const original = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
+
+    // Handle 403 — insufficient permissions
+    if (error.response?.status === 403) {
+      toast.error("You don't have permission to perform this action.");
+      return Promise.reject(error);
+    }
 
     // Handle 401 — try to refresh
     if (error.response?.status === 401 && !original._retry) {

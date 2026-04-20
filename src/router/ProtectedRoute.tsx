@@ -4,11 +4,13 @@ import { useAuth } from "../hooks/useAuth";
 interface ProtectedRouteProps {
   allowedRoles?: string[];
   redirectTo?: string;
+  children?: React.ReactNode;
 }
 
 export function ProtectedRoute({
   allowedRoles,
   redirectTo = "/login",
+  children,
 }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, role } = useAuth();
   const location = useLocation();
@@ -32,10 +34,9 @@ export function ProtectedRoute({
     return <Navigate to="/unauthorized" replace />;
   }
 
-  return <Outlet />;
+  return children ? <>{children}</> : <Outlet />;
 }
 
-// ── Public only route (redirect to dashboard if already logged in) ────────────
 export function PublicOnlyRoute() {
   const { isAuthenticated, isLoading } = useAuth();
 
