@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useLocation, Outlet } from "react-router-dom";
-import Sidebar from "./components/layout/Sidebar";
-import TopBar from "./components/layout/TopBar";
-import { cn } from "./lib/utils";
+import Sidebar from "@/components/layout/Sidebar";
+import TopBar from "@/components/layout/TopBar";
+import { cn } from "@/lib/utils";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",

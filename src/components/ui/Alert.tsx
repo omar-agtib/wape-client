@@ -1,7 +1,6 @@
 import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
-
-import { cn } from "../../lib/utils";
+import { cva } from "class-variance-authority";
+import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
   "relative w-full rounded-lg border px-4 py-3 text-sm grid has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current",
@@ -22,15 +21,40 @@ const alertVariants = cva(
 function Alert({
   className,
   variant,
+  message,
+  onClose,
+  children,
   ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
+}: React.ComponentProps<"div"> & {
+  variant?: "default" | "destructive" | "error";
+  message?: string;
+  onClose?: () => void;
+}) {
+  const cvaVariant =
+    variant === "error" || variant === "destructive"
+      ? "destructive"
+      : "default";
   return (
     <div
       data-slot="alert"
       role="alert"
-      className={cn(alertVariants({ variant }), className)}
+      className={cn(
+        alertVariants({ variant: cvaVariant }),
+        "flex items-start justify-between",
+        className,
+      )}
       {...props}
-    />
+    >
+      {message ?? children}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="ml-3 shrink-0 opacity-60 hover:opacity-100"
+        >
+          ✕
+        </button>
+      )}
+    </div>
   );
 }
 

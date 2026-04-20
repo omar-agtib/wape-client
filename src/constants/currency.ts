@@ -1,4 +1,4 @@
-import type { CurrencyOption } from "../types/currency";
+import type { CurrencyOption } from "@/types/currency";
 
 export const CURRENCIES: CurrencyOption[] = [
   { code: "MAD", symbol: "MAD", label: "Dirham Marocain", locale: "fr-MA" },

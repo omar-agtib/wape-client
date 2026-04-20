@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { CurrencyOption } from "../../types/currency";
+import type { CurrencyOption } from "@/types/currency";
 
 export interface CurrencyContextValue {
   currency: string;

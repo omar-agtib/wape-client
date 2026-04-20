@@ -1,11 +1,11 @@
 import React, { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Building2, UserPlus, CheckCircle } from "lucide-react";
-import { useAuth } from "../../hooks/useAuth";
-import { extractApiError } from "../../lib/api";
-import { Button } from "../../components/uid/Button";
-import { Input } from "../../components/uid/Input";
-import { Alert } from "../../components/uid/Alert";
+import { useAuth } from "@/hooks/useAuth";
+import { extractApiError } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert } from "@/components/ui/alert";
 
 interface FormState {
   companyName: string;

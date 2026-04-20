@@ -5,10 +5,10 @@ import {
   DropResult,
 } from "@hello-pangea/dnd";
 import { AlertTriangle } from "lucide-react";
-import { NonConformity } from "../../types/api";
-import { cn } from "../../lib/utils";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
+import { NonConformity } from "@/types/api";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

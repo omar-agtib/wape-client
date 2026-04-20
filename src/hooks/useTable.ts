@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { PaginatedResult } from "../types/api";
+import type { PaginatedResult } from "@/types/api";
 
 // ── usePaginatedQuery ─────────────────────────────────────────────────────────
 // Drop-in hook for any paginated backend endpoint

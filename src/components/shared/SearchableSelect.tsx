@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Input } from "../ui/input";
+import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 
 export interface SelectItem {

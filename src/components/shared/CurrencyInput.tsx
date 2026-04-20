@@ -1,14 +1,14 @@
 import React from "react";
-import { Input } from "../ui/input";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
-import { useCurrency } from "../../hooks/useCurrency";
-import { CURRENCIES } from "../../constants/currency";
+} from "@/components/ui/select";
+import { useCurrency } from "@/hooks/useCurrency";
+import { CURRENCIES } from "@/constants/currency";
 
 interface CurrencyInputProps {
   value: number | string;

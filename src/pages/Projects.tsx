@@ -6,14 +6,14 @@ import { Eye } from "lucide-react";
 
 import type { Project } from "@/types/api";
 
-import PageHeader from "../components/shared/PageHeader";
-import DataTable from "../components/shared/DataTable";
-import StatusBadge from "../components/shared/StatusBadge";
-import FormDialog from "../components/shared/FormDialog";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Textarea } from "../components/ui/textarea";
+import PageHeader from "@/components/shared/PageHeader";
+import DataTable from "@/components/shared/DataTable";
+import StatusBadge from "@/components/shared/StatusBadge";
+import FormDialog from "@/components/shared/FormDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,

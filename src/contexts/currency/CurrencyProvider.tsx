@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { CURRENCIES } from "../../constants/currency";
-import { CurrencyContext } from "./CurrencyContext";
+import { CURRENCIES } from "@/constants/currency";
+import { CurrencyContext } from "@/contexts/currency/CurrencyContext";
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState<string>(

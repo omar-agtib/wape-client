@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { api, extractData, tokenStorage } from "../../lib/api";
-import { connectSocket, disconnectSocket } from "../../lib/socket";
+import { api, extractData, tokenStorage } from "@/lib/api";
+import { connectSocket, disconnectSocket } from "@/lib/socket";
 import type {
   MeResponse,
   AuthTokens,
   LoginPayload,
   RegisterPayload,
   UserRole,
-} from "../../types/api";
-import { AuthContext } from "./AuthContext";
-import { authService } from "../../services/wape.service";
+} from "@/types/api";
+import { AuthContext } from "@/contexts/auth/AuthContext";
+import { authService } from "@/services/wape.service";
 
 interface AuthState {
   user: MeResponse | null;

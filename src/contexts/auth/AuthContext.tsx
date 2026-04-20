@@ -4,7 +4,7 @@ import type {
   MeResponse,
   RegisterPayload,
   UserRole,
-} from "../../types/api";
+} from "@/types/api";
 
 interface AuthState {
   user: MeResponse | null;

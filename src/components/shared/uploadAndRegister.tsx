@@ -1,6 +1,6 @@
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-import { documentsService, uploadService } from "../../services/wape.service";
+import { documentsService, uploadService } from "@/services/wape.service";
 
 interface UploadAndRegisterOptions {
   module?: string;

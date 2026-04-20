@@ -4,11 +4,11 @@ import {
   Navigate,
 } from "react-router-dom";
 import { ProtectedRoute, PublicOnlyRoute } from "./ProtectedRoute";
-import { LoginPage } from "../pages/auth/LoginPage";
-import { RegisterPage } from "../pages/auth/RegisterPage";
-import { UnauthorizedPage } from "../pages/UnauthorizedPage";
-import Layout from "../Layout";
-import { PAGES } from "../pages.config";
+import { LoginPage } from "@/pages/auth/LoginPage";
+import { RegisterPage } from "@/pages/auth/RegisterPage";
+import { UnauthorizedPage } from "@/pages/UnauthorizedPage";
+import Layout from "@/Layout";
+import { PAGES } from "@/pages.config";
 
 const ALL = [
   "admin",

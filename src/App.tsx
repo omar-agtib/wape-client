@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/auth/AuthProvider";
 import { CurrencyProvider } from "./contexts/currency/CurrencyProvider";
-import { ToastProvider } from "./components/uid/Toast";
+import { Toaster } from "@/components/ui/sonner";
 import { AppRouter } from "./router";
 
 const queryClient = new QueryClient({
@@ -19,9 +19,8 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CurrencyProvider>
-          <ToastProvider>
-            <AppRouter />
-          </ToastProvider>
+          <AppRouter />
+          <Toaster />
         </CurrencyProvider>
       </AuthProvider>
     </QueryClientProvider>

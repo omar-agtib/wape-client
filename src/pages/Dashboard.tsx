@@ -25,16 +25,16 @@ import {
   Clock,
   TrendingUp,
 } from "lucide-react";
-import { projectsService } from "../services/wape.service";
-import { tasksService } from "../services/wape.service";
-import { personnelService } from "../services/wape.service";
-import { articlesService } from "../services/wape.service";
-import { ncService } from "../services/wape.service";
-import { financeService } from "../services/wape.service";
-import KPICard from "../components/shared/KPICard";
-import StatusBadge from "../components/shared/StatusBadge";
-import type { Project, Task } from "../types/api";
-import { createPageUrl } from "../lib/utils";
+import { projectsService } from "@/services/wape.service";
+import { tasksService } from "@/services/wape.service";
+import { personnelService } from "@/services/wape.service";
+import { articlesService } from "@/services/wape.service";
+import { ncService } from "@/services/wape.service";
+import { financeService } from "@/services/wape.service";
+import KPICard from "@/components/shared/KPICard";
+import StatusBadge from "@/components/shared/StatusBadge";
+import type { Project, Task } from "@/types/api";
+import { createPageUrl } from "@/lib/utils";
 
 const CHART_COLORS = [
   "hsl(221,83%,53%)",

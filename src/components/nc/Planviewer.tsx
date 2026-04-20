@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ZoomIn, ZoomOut, RotateCcw, X, MapPin } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

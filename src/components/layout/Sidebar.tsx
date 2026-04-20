@@ -30,9 +30,9 @@ import {
   CalendarCheck,
   FileBarChart2,
 } from "lucide-react";
-import { cn, createPageUrl } from "../../lib/utils";
-import { useAuth } from "../../hooks/useAuth";
-import type { UserRole } from "../../lib/permissions";
+import { cn, createPageUrl } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import type { UserRole } from "@/lib/permissions";
 
 // ── Nav item types ─────────────────────────────────────────────────────────────
 

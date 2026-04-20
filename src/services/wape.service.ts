@@ -1,4 +1,4 @@
-import { api, extractData } from "../lib/api";
+import { api, extractData } from "@/lib/api";
 import type {
   Project,
   Task,
@@ -12,7 +12,7 @@ import type {
   FinanceDashboard,
   PaginatedResult,
   UploadResult,
-} from "../types/api";
+} from "@/types/api";
 
 // ── Generic ───────────────────────────────────────────────────────────────────
 export type ListParams = {

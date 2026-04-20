@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 // ── Page Header ───────────────────────────────────────────────────────────────
 interface PageHeaderProps {

@@ -1,6 +1,6 @@
 import { io, type Socket } from "socket.io-client";
-import { tokenStorage } from "./api";
-import type { RealtimeNotification } from "../types/api";
+import { tokenStorage } from "@/lib/api";
+import type { RealtimeNotification } from "@/types/api";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? "http://localhost:3000";
 
