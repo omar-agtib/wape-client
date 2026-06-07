@@ -213,6 +213,8 @@ export const projectsService = {
 export type CreateTaskPayload = {
   projectId: string;
   name: string;
+  zone?: string;
+  priority?: "low" | "medium" | "high";
   description?: string;
   startDate: string;
   endDate: string;

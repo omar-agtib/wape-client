@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
 import {
+  tasksService,
   personnelService,
   articlesService,
   toolsService,
@@ -27,8 +28,8 @@ import SearchableSelect from "@/components/shared/SearchableSelect";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type TaskStatus = "planned" | "on_progress" | "completed";
+type TaskPriority = "low" | "medium" | "high";
 
-// Local row types used only inside the form UI
 interface PersonnelRow {
   personnelId: string;
   fullName: string;
@@ -53,6 +54,8 @@ interface ToolRow {
 interface FormState {
   name: string;
   projectId: string;
+  zone: string;
+  priority: TaskPriority;
   description: string;
   startDate: string;
   endDate: string;
@@ -64,26 +67,21 @@ interface FormState {
 interface Props {
   task?: Task | null;
   projects: Project[];
-  onSave: (payload: CreateTaskPayload | UpdateTaskPayload) => void;
+  // Called after the task AND its sub-resources are fully persisted.
+  onSaved: () => void;
   onCancel: () => void;
-  saving: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function TaskForm({
-  task,
-  projects,
-  onSave,
-  onCancel,
-  saving,
-}: Props) {
+export default function TaskForm({ task, projects, onSaved, onCancel }: Props) {
   const queryClient = useQueryClient();
 
-  // ── Form state
   const [form, setForm] = useState<FormState>({
     name: task?.name ?? "",
     projectId: task?.projectId ?? "",
+    zone: task?.zone ?? "",
+    priority: (task?.priority as TaskPriority) ?? "medium",
     description: task?.description ?? "",
     startDate: task?.startDate ?? "",
     endDate: task?.endDate ?? "",
@@ -92,7 +90,9 @@ export default function TaskForm({
     progress: task?.progress ?? 0,
   });
 
-  // Sub-resource rows (local UI state — saved separately after task create/update)
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const [personnelRows, setPersonnelRows] = useState<PersonnelRow[]>([]);
   const [articleRows, setArticleRows] = useState<ArticleRow[]>([]);
   const [toolRows, setToolRows] = useState<ToolRow[]>([]);
@@ -102,12 +102,10 @@ export default function TaskForm({
     queryKey: ["personnel"],
     queryFn: () => personnelService.list({ limit: 100 }),
   });
-
   const { data: articlesData } = useQuery({
     queryKey: ["articles"],
     queryFn: () => articlesService.list({ limit: 100 }),
   });
-
   const { data: toolsData } = useQuery({
     queryKey: ["tools"],
     queryFn: () => toolsService.list({ limit: 100 }),
@@ -117,7 +115,7 @@ export default function TaskForm({
   const articlesList = (articlesData?.items ?? []) as Article[];
   const toolsList = (toolsData?.items ?? []) as Tool[];
 
-  // ── Quick-create mutations
+  // ── Quick-create
   const quickCreatePersonnel = useMutation({
     mutationFn: (name: string) =>
       personnelService.create({
@@ -162,7 +160,25 @@ export default function TaskForm({
     },
   });
 
-  // ── Personnel helpers
+  const quickCreateTool = useMutation({
+    mutationFn: (name: string) =>
+      toolsService.create({
+        name,
+        category: "General",
+      }),
+    onSuccess: (created: Tool) => {
+      queryClient.invalidateQueries({ queryKey: ["tools"] });
+      setToolRows((prev) => [
+        ...prev,
+        {
+          toolId: created.id,
+          name: created.name,
+          plannedDays: 1,
+        },
+      ]);
+    },
+  });
+  // ── Row helpers
   const addPersonnel = (item: { id: string | number; label: string }) => {
     const id = String(item.id);
     if (personnelRows.some((r) => r.personnelId === id)) return;
@@ -190,7 +206,6 @@ export default function TaskForm({
     );
   };
 
-  // ── Article helpers
   const addArticle = (item: { id: string | number; label: string }) => {
     const id = String(item.id);
     if (articleRows.some((r) => r.articleId === id)) return;
@@ -219,18 +234,13 @@ export default function TaskForm({
     );
   };
 
-  // ── Tool helpers
   const addTool = (item: { id: string | number; label: string }) => {
     const id = String(item.id);
     if (toolRows.some((r) => r.toolId === id)) return;
     const found = toolsList.find((t) => t.id === id);
     setToolRows((prev) => [
       ...prev,
-      {
-        toolId: id,
-        name: found?.name ?? item.label,
-        plannedDays: 1,
-      },
+      { toolId: id, name: found?.name ?? item.label, plannedDays: 1 },
     ]);
   };
 
@@ -242,7 +252,7 @@ export default function TaskForm({
     );
   };
 
-  // ── Cost estimates
+  // ── Cost estimate
   const estPersonnel = personnelRows.reduce(
     (s, p) => s + p.costPerHour * p.plannedHours,
     0,
@@ -254,27 +264,71 @@ export default function TaskForm({
   const totalEst = estPersonnel + estArticles;
 
   // ── Submit
-  const handleSave = () => {
-    if (task) {
-      const payload: UpdateTaskPayload = {
-        name: form.name,
-        description: form.description || undefined,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        currency: form.currency,
-        progress: form.progress,
-      };
-      onSave(payload);
-    } else {
-      const payload: CreateTaskPayload = {
-        name: form.name,
-        projectId: form.projectId,
-        description: form.description || undefined,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        currency: form.currency,
-      };
-      onSave(payload);
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      if (task) {
+        const payload: UpdateTaskPayload = {
+          name: form.name,
+          zone: form.zone || undefined,
+          priority: form.priority,
+          description: form.description || undefined,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          currency: form.currency,
+          progress: form.progress,
+        };
+        await tasksService.update(task.id, payload);
+      } else {
+        const payload: CreateTaskPayload = {
+          name: form.name,
+          projectId: form.projectId,
+          zone: form.zone || undefined,
+          priority: form.priority,
+          description: form.description || undefined,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          currency: form.currency,
+        };
+        const created = await tasksService.create(payload);
+
+        // Persist sub-resources against the new task id.
+        // quantity maps to hours (personnel) / qty (articles) / days (tools).
+        for (const p of personnelRows) {
+          await tasksService.addPersonnel(created.id, {
+            personnelId: p.personnelId,
+            quantity: p.plannedHours,
+            currency: form.currency,
+          });
+        }
+        for (const a of articleRows) {
+          await tasksService.addArticle(created.id, {
+            articleId: a.articleId,
+            quantity: a.plannedQuantity,
+            currency: form.currency,
+          });
+        }
+        for (const t of toolRows) {
+          await tasksService.addTool(created.id, {
+            toolId: t.toolId,
+            quantity: t.plannedDays,
+            unitCost: 0,
+            currency: form.currency,
+          });
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      onSaved();
+    } catch (err) {
+      setSaveError(
+        (err as Error)?.message ??
+          "Something went wrong while saving the task.",
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -306,6 +360,36 @@ export default function TaskForm({
                 {p.name}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Zone */}
+      <div>
+        <Label>Zone</Label>
+        <Input
+          placeholder="e.g. Bloc A"
+          value={form.zone}
+          onChange={(e) => setForm({ ...form, zone: e.target.value })}
+        />
+      </div>
+
+      {/* Priority */}
+      <div>
+        <Label>Priority</Label>
+        <Select
+          value={form.priority}
+          onValueChange={(v) =>
+            setForm({ ...form, priority: v as TaskPriority })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">Low</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="high">High</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -365,6 +449,7 @@ export default function TaskForm({
           </SelectContent>
         </Select>
       </div>
+
       {/* Progress */}
       <div>
         <Label>Progress (%)</Label>
@@ -385,148 +470,155 @@ export default function TaskForm({
         />
       </div>
 
-      {/* ── Personnel */}
-      <div className="col-span-2">
-        <Label>Assign Personnel</Label>
-        <SearchableSelect
-          items={personnelList.map((p) => ({ id: p.id, label: p.fullName }))}
-          onSelect={addPersonnel}
-          onQuickCreate={(name) => quickCreatePersonnel.mutate(name)}
-          placeholder="Search personnel..."
-        />
-        <div className="mt-2 space-y-1">
-          {personnelRows.map((p) => (
-            <div
-              key={p.personnelId}
-              className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 text-xs"
-            >
-              <span className="flex-1 font-medium">{p.fullName}</span>
-              <span className="text-muted-foreground">Hours:</span>
-              <Input
-                type="number"
-                className="w-16 h-6 text-xs"
-                value={p.plannedHours}
-                onChange={(e) =>
-                  updatePersonnelRow(
-                    p.personnelId,
-                    "plannedHours",
-                    e.target.value,
-                  )
-                }
-              />
-              <span className="text-muted-foreground">Rate:</span>
-              <Input
-                type="number"
-                className="w-20 h-6 text-xs"
-                value={p.costPerHour}
-                onChange={(e) =>
-                  updatePersonnelRow(
-                    p.personnelId,
-                    "costPerHour",
-                    e.target.value,
-                  )
-                }
-              />
-              <X
-                className="w-3 h-3 cursor-pointer text-muted-foreground hover:text-destructive"
-                onClick={() =>
-                  setPersonnelRows((prev) =>
-                    prev.filter((r) => r.personnelId !== p.personnelId),
-                  )
-                }
-              />
-            </div>
-          ))}
+      {/* ── Personnel (create only) */}
+      {!task && (
+        <div className="col-span-2">
+          <Label>Assign Personnel</Label>
+          <SearchableSelect
+            items={personnelList.map((p) => ({ id: p.id, label: p.fullName }))}
+            onSelect={addPersonnel}
+            onQuickCreate={(name) => quickCreatePersonnel.mutate(name)}
+            placeholder="Search personnel..."
+          />
+          <div className="mt-2 space-y-1">
+            {personnelRows.map((p) => (
+              <div
+                key={p.personnelId}
+                className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 text-xs"
+              >
+                <span className="flex-1 font-medium">{p.fullName}</span>
+                <span className="text-muted-foreground">Hours:</span>
+                <Input
+                  type="number"
+                  className="w-16 h-6 text-xs"
+                  value={p.plannedHours}
+                  onChange={(e) =>
+                    updatePersonnelRow(
+                      p.personnelId,
+                      "plannedHours",
+                      e.target.value,
+                    )
+                  }
+                />
+                <span className="text-muted-foreground">Rate:</span>
+                <Input
+                  type="number"
+                  className="w-20 h-6 text-xs"
+                  value={p.costPerHour}
+                  onChange={(e) =>
+                    updatePersonnelRow(
+                      p.personnelId,
+                      "costPerHour",
+                      e.target.value,
+                    )
+                  }
+                />
+                <X
+                  className="w-3 h-3 cursor-pointer text-muted-foreground hover:text-destructive"
+                  onClick={() =>
+                    setPersonnelRows((prev) =>
+                      prev.filter((r) => r.personnelId !== p.personnelId),
+                    )
+                  }
+                />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── Articles */}
-      <div className="col-span-2">
-        <Label>Assign Materials</Label>
-        <SearchableSelect
-          items={articlesList.map((a) => ({ id: a.id, label: a.name }))}
-          onSelect={addArticle}
-          onQuickCreate={(name) => quickCreateArticle.mutate(name)}
-          placeholder="Search materials..."
-        />
-        <div className="mt-2 space-y-1">
-          {articleRows.map((a) => (
-            <div
-              key={a.articleId}
-              className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 text-xs"
-            >
-              <span className="flex-1 font-medium">{a.name}</span>
-              <span className="text-muted-foreground">
-                Qty{a.unit ? ` (${a.unit})` : ""}:
-              </span>
-              <Input
-                type="number"
-                className="w-16 h-6 text-xs"
-                value={a.plannedQuantity}
-                onChange={(e) =>
-                  updateArticleRow(
-                    a.articleId,
-                    "plannedQuantity",
-                    e.target.value,
-                  )
-                }
-              />
-              <span className="text-muted-foreground">Unit price:</span>
-              <Input
-                type="number"
-                className="w-20 h-6 text-xs"
-                value={a.unitPrice}
-                onChange={(e) =>
-                  updateArticleRow(a.articleId, "unitPrice", e.target.value)
-                }
-              />
-              <X
-                className="w-3 h-3 cursor-pointer text-muted-foreground hover:text-destructive"
-                onClick={() =>
-                  setArticleRows((prev) =>
-                    prev.filter((r) => r.articleId !== a.articleId),
-                  )
-                }
-              />
-            </div>
-          ))}
+      {/* ── Materials (create only) */}
+      {!task && (
+        <div className="col-span-2">
+          <Label>Assign Materials</Label>
+          <SearchableSelect
+            items={articlesList.map((a) => ({ id: a.id, label: a.name }))}
+            onSelect={addArticle}
+            onQuickCreate={(name) => quickCreateArticle.mutate(name)}
+            placeholder="Search materials..."
+          />
+          <div className="mt-2 space-y-1">
+            {articleRows.map((a) => (
+              <div
+                key={a.articleId}
+                className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 text-xs"
+              >
+                <span className="flex-1 font-medium">{a.name}</span>
+                <span className="text-muted-foreground">
+                  Qty{a.unit ? ` (${a.unit})` : ""}:
+                </span>
+                <Input
+                  type="number"
+                  className="w-16 h-6 text-xs"
+                  value={a.plannedQuantity}
+                  onChange={(e) =>
+                    updateArticleRow(
+                      a.articleId,
+                      "plannedQuantity",
+                      e.target.value,
+                    )
+                  }
+                />
+                <span className="text-muted-foreground">Unit price:</span>
+                <Input
+                  type="number"
+                  className="w-20 h-6 text-xs"
+                  value={a.unitPrice}
+                  onChange={(e) =>
+                    updateArticleRow(a.articleId, "unitPrice", e.target.value)
+                  }
+                />
+                <X
+                  className="w-3 h-3 cursor-pointer text-muted-foreground hover:text-destructive"
+                  onClick={() =>
+                    setArticleRows((prev) =>
+                      prev.filter((r) => r.articleId !== a.articleId),
+                    )
+                  }
+                />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── Tools */}
-      <div className="col-span-2">
-        <Label>Assign Tools</Label>
-        <SearchableSelect
-          items={toolsList.map((t) => ({ id: t.id, label: t.name }))}
-          onSelect={addTool}
-          placeholder="Search tools..."
-        />
-        <div className="mt-2 space-y-1">
-          {toolRows.map((t) => (
-            <div
-              key={t.toolId}
-              className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 text-xs"
-            >
-              <span className="flex-1 font-medium">{t.name}</span>
-              <span className="text-muted-foreground">Days:</span>
-              <Input
-                type="number"
-                className="w-16 h-6 text-xs"
-                value={t.plannedDays}
-                onChange={(e) => updateToolRow(t.toolId, e.target.value)}
-              />
-              <X
-                className="w-3 h-3 cursor-pointer text-muted-foreground hover:text-destructive"
-                onClick={() =>
-                  setToolRows((prev) =>
-                    prev.filter((r) => r.toolId !== t.toolId),
-                  )
-                }
-              />
-            </div>
-          ))}
+      {/* ── Tools (create only) */}
+      {!task && (
+        <div className="col-span-2">
+          <Label>Assign Tools</Label>
+          <SearchableSelect
+            items={toolsList.map((t) => ({ id: t.id, label: t.name }))}
+            onSelect={addTool}
+            onQuickCreate={(name) => quickCreateTool.mutate(name)}
+            placeholder="Search tools..."
+          />
+          <div className="mt-2 space-y-1">
+            {toolRows.map((t) => (
+              <div
+                key={t.toolId}
+                className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 text-xs"
+              >
+                <span className="flex-1 font-medium">{t.name}</span>
+                <span className="text-muted-foreground">Days:</span>
+                <Input
+                  type="number"
+                  className="w-16 h-6 text-xs"
+                  value={t.plannedDays}
+                  onChange={(e) => updateToolRow(t.toolId, e.target.value)}
+                />
+                <X
+                  className="w-3 h-3 cursor-pointer text-muted-foreground hover:text-destructive"
+                  onClick={() =>
+                    setToolRows((prev) =>
+                      prev.filter((r) => r.toolId !== t.toolId),
+                    )
+                  }
+                />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Cost summary */}
       {totalEst > 0 && (
@@ -560,7 +652,7 @@ export default function TaskForm({
         />
       </div>
 
-      {/* ── Note about sub-resources */}
+      {/* ── Note (edit mode) */}
       {task && (
         <p className="col-span-2 text-xs text-muted-foreground bg-muted/30 rounded p-2">
           ℹ️ To manage assigned personnel, materials and tools on an existing
@@ -568,9 +660,16 @@ export default function TaskForm({
         </p>
       )}
 
+      {/* ── Error */}
+      {saveError && (
+        <p className="col-span-2 text-sm text-destructive bg-destructive/5 rounded p-2">
+          {saveError}
+        </p>
+      )}
+
       {/* ── Actions */}
       <div className="col-span-2 flex justify-end gap-2">
-        <Button variant="outline" onClick={onCancel}>
+        <Button variant="outline" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>
         <Button

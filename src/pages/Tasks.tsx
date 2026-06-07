@@ -32,6 +32,12 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+const PRIORITY_STYLES: Record<string, string> = {
+  low: "bg-green-100 text-green-700",
+  medium: "bg-amber-100 text-amber-700",
+  high: "bg-red-100 text-red-700",
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type TaskStatus = "planned" | "on_progress" | "completed";
@@ -138,6 +144,24 @@ export default function Tasks() {
           </div>
         );
       },
+    },
+    {
+      header: "Zone",
+      cell: (row: Task) => (
+        <span className="text-sm text-muted-foreground">{row.zone || "—"}</span>
+      ),
+    },
+    {
+      header: "Priority",
+      cell: (row: Task) => (
+        <span
+          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+            PRIORITY_STYLES[row.priority] ?? "bg-muted text-muted-foreground"
+          }`}
+        >
+          {row.priority ?? "medium"}
+        </span>
+      ),
     },
     {
       header: "Duration",
@@ -297,9 +321,11 @@ export default function Tasks() {
         <TaskForm
           task={editing}
           projects={projects as Project[]}
-          onSave={(data) => saveMutation.mutate(data)}
+          onSaved={() => {
+            setShowForm(false);
+            setEditing(null);
+          }}
           onCancel={() => setShowForm(false)}
-          saving={saveMutation.isPending}
         />
       </FormDialog>
     </div>

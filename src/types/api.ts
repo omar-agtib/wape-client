@@ -115,12 +115,15 @@ export interface FinanceSnapshot {
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
 export type TaskStatus = "planned" | "on_progress" | "completed";
+export type TaskPriority = "low" | "medium" | "high";
 
 export interface Task {
   id: string;
   tenantId: string;
   projectId: string;
   name: string;
+  zone?: string;
+  priority: TaskPriority;
   description?: string;
   startDate: string;
   endDate: string;

@@ -15,21 +15,24 @@ import StatusBadge from "@/components/shared/StatusBadge";
 interface TaskPersonnel {
   id: string;
   personnelId: string;
-  plannedHours: number;
+  quantity: number; // hours
+  unitCost: number;
   personnel?: { fullName: string; role: string; costPerHour: number };
 }
 
 interface TaskArticle {
   id: string;
   articleId: string;
-  plannedQuantity: number;
+  quantity: number;
+  unitCost: number;
   article?: { name: string; unit?: string; unitPrice: number };
 }
 
 interface TaskTool {
   id: string;
   toolId: string;
-  plannedDays: number;
+  quantity: number; // days
+  unitCost: number;
   tool?: { name: string; category: string };
 }
 
@@ -98,13 +101,13 @@ export default function TaskDetails() {
 
   // ── Cost estimates from sub-resources
   const personnelCost = personnel.reduce((sum, p) => {
-    const rate = p.personnel?.costPerHour ?? 0;
-    return sum + rate * (p.plannedHours ?? 0);
+    const rate = p.unitCost ?? p.personnel?.costPerHour ?? 0;
+    return sum + rate * (p.quantity ?? 0);
   }, 0);
 
   const articlesCost = articles.reduce((sum, a) => {
-    const price = a.article?.unitPrice ?? 0;
-    return sum + price * (a.plannedQuantity ?? 0);
+    const price = a.unitCost ?? a.article?.unitPrice ?? 0;
+    return sum + price * (a.quantity ?? 0);
   }, 0);
 
   const totalEstimated = task.estimatedCost ?? personnelCost + articlesCost;
@@ -269,7 +272,7 @@ export default function TaskDetails() {
                           {p.personnel?.fullName ?? p.personnelId}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {p.plannedHours}h
+                          {p.quantity}h
                           {p.personnel?.role ? ` · ${p.personnel.role}` : ""}
                         </p>
                       </div>
@@ -301,7 +304,7 @@ export default function TaskDetails() {
                         {a.article?.name ?? a.articleId}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        qty: {a.plannedQuantity}{" "}
+                        qty: {a.quantity}{" "}
                         {a.article?.unit ? `${a.article.unit}` : ""}
                       </span>
                     </div>
@@ -330,7 +333,7 @@ export default function TaskDetails() {
                     >
                       <p className="text-sm">{t.tool?.name ?? t.toolId}</p>
                       <span className="text-xs text-muted-foreground">
-                        {t.plannedDays}d
+                        {t.quantity}d
                       </span>
                     </div>
                   ))}

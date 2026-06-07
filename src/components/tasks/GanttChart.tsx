@@ -1,5 +1,14 @@
 import { useMemo, useState } from "react";
-import { format, differenceInDays, addDays, parseISO } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { tasksService } from "@/services/wape.service";
+import {
+  format,
+  differenceInDays,
+  addDays,
+  addMonths,
+  startOfMonth,
+  parseISO,
+} from "date-fns";
 import { X } from "lucide-react";
 
 import type { Task, Personnel, Tool, Article } from "@/types/api";
@@ -43,17 +52,41 @@ export default function GanttChart({
   const [filterTool, setFilterTool] = useState("all");
   const [filterArticle, setFilterArticle] = useState("all");
 
-  // Tasks that have both dates set
-  const validTasks = tasks.filter((t) => t.startDate && t.endDate);
+  const hasResourceFilter =
+    filterPersonnel !== "all" ||
+    filterTool !== "all" ||
+    filterArticle !== "all";
 
-  // ── Filters
+  // When a resource filter is active, ask the backend for matching tasks.
+  const { data: filteredData } = useQuery({
+    queryKey: [
+      "tasks",
+      "gantt-filter",
+      filterPersonnel,
+      filterTool,
+      filterArticle,
+    ],
+    queryFn: () =>
+      tasksService.list({
+        limit: 100,
+        personnelId: filterPersonnel !== "all" ? filterPersonnel : undefined,
+        toolId: filterTool !== "all" ? filterTool : undefined,
+        articleId: filterArticle !== "all" ? filterArticle : undefined,
+      }),
+    enabled: hasResourceFilter,
+  });
+
+  // Source list: backend-filtered when a resource filter is on, else the prop.
+  const sourceTasks = hasResourceFilter ? (filteredData?.items ?? []) : tasks;
+
+  // Tasks that have both dates set
+  const validTasks = sourceTasks.filter((t) => t.startDate && t.endDate);
+
+  // Apply date-range filters client-side
   const filteredTasks = useMemo(() => {
     return validTasks.filter((t) => {
       if (filterDateStart && t.endDate < filterDateStart) return false;
       if (filterDateEnd && t.startDate > filterDateEnd) return false;
-      // Personnel / tool / article filters are best-effort:
-      // the task object from list endpoint doesn't carry sub-resource lists,
-      // so these filters apply only when the data is available.
       return true;
     });
   }, [validTasks, filterDateStart, filterDateEnd]);
@@ -70,11 +103,26 @@ export default function GanttChart({
   }, [filteredTasks]);
 
   // ── Week header labels
-  const headerDates = useMemo(() => {
-    const result: Date[] = [];
-    for (let i = 0; i < days; i += 7) result.push(addDays(minDate, i));
+  const isMonthly = days > 70;
+
+  const headerTicks = useMemo(() => {
+    const result: { date: Date; label: string }[] = [];
+    if (isMonthly) {
+      // Start at the first of the month on/after minDate, step by month
+      let d = startOfMonth(minDate);
+      const end = addDays(minDate, days);
+      while (d <= end) {
+        result.push({ date: d, label: format(d, "MMM yyyy") });
+        d = addMonths(d, 1);
+      }
+    } else {
+      for (let i = 0; i < days; i += 7) {
+        const d = addDays(minDate, i);
+        result.push({ date: d, label: format(d, "MMM d") });
+      }
+    }
     return result;
-  }, [minDate, days]);
+  }, [minDate, days, isMonthly]);
 
   const hasFilters =
     filterDateStart ||
@@ -196,15 +244,15 @@ export default function GanttChart({
                 Task
               </div>
               <div className="flex-1 relative h-8">
-                {headerDates.map((d, i) => (
+                {headerTicks.map((tick, i) => (
                   <div
                     key={i}
-                    className="absolute top-0 text-xs text-muted-foreground py-2"
+                    className="absolute top-0 text-xs text-muted-foreground py-2 whitespace-nowrap"
                     style={{
-                      left: `${(differenceInDays(d, minDate) / days) * 100}%`,
+                      left: `${(differenceInDays(tick.date, minDate) / days) * 100}%`,
                     }}
                   >
-                    {format(d, "MMM d")}
+                    {tick.label}
                   </div>
                 ))}
               </div>
