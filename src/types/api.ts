@@ -73,6 +73,8 @@ export interface Project {
   tenantId: string;
   name: string;
   clientId?: string;
+  location?: string;
+  managerId?: string;
   description?: string;
   budget: number;
   currency: string;
@@ -84,6 +86,16 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   financeSnapshot?: FinanceSnapshot;
+}
+
+export interface TeamUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  isActive: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
 }
 
 export interface FinanceSnapshot {

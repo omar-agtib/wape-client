@@ -12,6 +12,7 @@ import type {
   FinanceDashboard,
   PaginatedResult,
   UploadResult,
+  TeamUser,
 } from "@/types/api";
 
 // ── Generic ───────────────────────────────────────────────────────────────────
@@ -117,6 +118,8 @@ export const authService = {
 export type CreateProjectPayload = {
   name: string;
   clientId?: string;
+  location?: string;
+  managerId?: string;
   description?: string;
   budget: number;
   currency?: string;
@@ -1271,7 +1274,7 @@ export const usersService = {
 
   // GET /users — list team members (admin/PM)
   listTeam: () =>
-    extractData(api.get<{ success: boolean; data: unknown[] }>("/users")),
+    extractData(api.get<{ success: boolean; data: TeamUser[] }>("/users")),
 
   // POST /users/invite — admin only
   invite: (body: InviteUserPayload) =>

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Eye } from "lucide-react";
+import { Eye, UserPlus } from "lucide-react";
 
-import type { Project } from "@/types/api";
+import type { Project, TeamUser } from "@/types/api";
 
 import PageHeader from "@/components/shared/PageHeader";
 import DataTable from "@/components/shared/DataTable";
@@ -26,6 +26,7 @@ import CurrencyInput from "../components/shared/CurrencyInput";
 import {
   projectsService,
   contactsService,
+  usersService,
   CreateProjectPayload,
   UpdateProjectPayload,
 } from "@/services/wape.service";
@@ -50,6 +51,7 @@ export default function Projects() {
   const [form, setForm] = useState<FormState>({});
 
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // ── Queries
   const { data: projectsData, isLoading } = useQuery({
@@ -62,8 +64,14 @@ export default function Projects() {
     queryFn: () => contactsService.listClients({ limit: 100 }),
   });
 
+  const { data: teamData } = useQuery({
+    queryKey: ["team"],
+    queryFn: () => usersService.listTeam(),
+  });
+
   const projects = projectsData?.items ?? [];
   const clients = clientsData?.items ?? [];
+  const team = (teamData ?? []) as TeamUser[];
 
   // ── Mutations
   const saveMutation = useMutation({
@@ -71,6 +79,8 @@ export default function Projects() {
       const payload: CreateProjectPayload = {
         name: data.name!,
         clientId: data.clientId || undefined,
+        location: data.location || undefined,
+        managerId: data.managerId || undefined,
         description: data.description || undefined,
         budget: data.budget ?? 0,
         currency: data.currency ?? "MAD",
@@ -98,6 +108,8 @@ export default function Projects() {
       setForm({
         name: project.name,
         clientId: project.clientId,
+        location: project.location,
+        managerId: project.managerId,
         description: project.description,
         budget: project.budget,
         currency: project.currency,
@@ -116,6 +128,9 @@ export default function Projects() {
     if (!form.name || !form.startDate || !form.endDate) return;
     saveMutation.mutate(form);
   };
+
+  const managerName = (id?: string) =>
+    team.find((u) => u.id === id)?.fullName ?? "—";
 
   // ── Filtering (client-side on loaded page)
   const filtered = projects.filter((p) => {
@@ -138,6 +153,22 @@ export default function Projects() {
             </p>
           )}
         </div>
+      ),
+    },
+    {
+      header: "Location",
+      cell: (row: Project) => (
+        <span className="text-sm text-muted-foreground">
+          {row.location || "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Manager",
+      cell: (row: Project) => (
+        <span className="text-sm text-muted-foreground">
+          {managerName(row.managerId)}
+        </span>
       ),
     },
     {
@@ -243,24 +274,48 @@ export default function Projects() {
           {/* Client */}
           <div>
             <Label>Client</Label>
-            <Select
-              value={form.clientId ?? "none"}
-              onValueChange={(v) =>
-                setForm({ ...form, clientId: v === "none" ? undefined : v })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select client" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No client</SelectItem>
-                {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.legalName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {clients.length === 0 ? (
+              // Smart no-client UX: nudge the user to create a client first
+              <div className="flex h-10 items-center rounded-md border border-input bg-background px-3">
+                <button
+                  type="button"
+                  onClick={() => navigate("/contacts/clients")}
+                  className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  Add a client
+                </button>
+              </div>
+            ) : (
+              <Select
+                value={form.clientId ?? "none"}
+                onValueChange={(v) =>
+                  setForm({ ...form, clientId: v === "none" ? undefined : v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No client</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.legalName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Location */}
+          <div>
+            <Label>Location</Label>
+            <Input
+              placeholder="e.g. Rabat"
+              value={form.location ?? ""}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+            />
           </div>
 
           {/* Dates */}
@@ -281,8 +336,31 @@ export default function Projects() {
             />
           </div>
 
+          {/* Manager */}
+          <div>
+            <Label>Manager</Label>
+            <Select
+              value={form.managerId ?? "none"}
+              onValueChange={(v) =>
+                setForm({ ...form, managerId: v === "none" ? undefined : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select manager" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No manager</SelectItem>
+                {team.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Budget */}
-          <div className="col-span-2">
+          <div>
             <Label>Budget</Label>
             <CurrencyInput
               value={form.budget ?? 0}

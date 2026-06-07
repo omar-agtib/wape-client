@@ -80,7 +80,7 @@ export default function TopBar({ onToggleSidebar, pageTitle }: TopBarProps) {
       {/* ── Right ── */}
       <div className="flex items-center gap-2">
         {/* Search */}
-        <div className="relative hidden md:block">
+        {/* <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
@@ -92,10 +92,10 @@ export default function TopBar({ onToggleSidebar, pageTitle }: TopBarProps) {
               transition-all
             "
           />
-        </div>
+        </div> */}
 
         {/* Currency selector */}
-        <Select
+        {/* <Select
           onValueChange={(value) => setCurrency(value)}
           defaultValue={currency}
         >
@@ -114,10 +114,10 @@ export default function TopBar({ onToggleSidebar, pageTitle }: TopBarProps) {
               </SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </Select> */}
 
         {/* Notifications */}
-        <div className="relative">
+        {/* <div className="relative">
           <button
             onClick={() => {
               setNotifOpen((v) => !v);
@@ -174,7 +174,7 @@ export default function TopBar({ onToggleSidebar, pageTitle }: TopBarProps) {
               </div>
             </>
           )}
-        </div>
+        </div> */}
 
         {/* User menu */}
         <div className="relative">
