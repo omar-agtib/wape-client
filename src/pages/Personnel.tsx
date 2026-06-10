@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFieldErrors } from "@/hooks/useFieldErrors";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ export default function Personnel() {
   const [form, setForm] = useState<FormState>(defaultForm);
 
   const queryClient = useQueryClient();
+  const fieldErrors = useFieldErrors();
 
   // ── Queries
   const { data: personnelData, isLoading } = useQuery({
@@ -121,6 +123,9 @@ export default function Personnel() {
       editing
         ? personnelService.update(editing.id, data as UpdatePersonnelPayload)
         : personnelService.create(data as CreatePersonnelPayload),
+    meta: { skipGlobalError: true },
+    onMutate: () => fieldErrors.clear(),
+    onError: (err) => fieldErrors.handle(err),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["personnel"] });
       setShowForm(false);
@@ -496,7 +501,13 @@ export default function Personnel() {
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className={fieldErrors.get("email") ? "border-destructive" : ""}
             />
+            {fieldErrors.get("email") && (
+              <p className="text-xs text-destructive mt-1">
+                {fieldErrors.get("email")}
+              </p>
+            )}
           </div>
 
           {/* Phone */}
