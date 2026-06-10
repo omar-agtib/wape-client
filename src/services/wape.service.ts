@@ -502,6 +502,9 @@ export type CreateArticlePayload = {
   unitPrice: number;
   currency?: string;
   initialStock?: number; // sets stockQuantity on creation
+  minimumStock?: number;
+  storageLocation?: string;
+  description?: string;
 };
 
 export type UpdateArticlePayload = Partial<CreateArticlePayload>;

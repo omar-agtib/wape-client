@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Eye } from "lucide-react";
 
 import {
@@ -12,10 +13,10 @@ import type { Article } from "@/types/api";
 import PageHeader from "@/components/shared/PageHeader";
 import DataTable from "@/components/shared/DataTable";
 import FormDialog from "@/components/shared/FormDialog";
-import BarcodeDisplay from "@/components/articles/BarcodeDisplay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -34,6 +35,9 @@ interface FormState {
   unitPrice: number;
   currency: string;
   initialStock: number;
+  minimumStock: number;
+  storageLocation: string;
+  description: string;
 }
 
 const defaultForm: FormState = {
@@ -43,6 +47,9 @@ const defaultForm: FormState = {
   unitPrice: 0,
   currency: "MAD",
   initialStock: 0,
+  minimumStock: 0,
+  storageLocation: "",
+  description: "",
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -50,10 +57,10 @@ const defaultForm: FormState = {
 export default function Articles() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [showDetail, setShowDetail] = useState<Article | null>(null);
   const [editing, setEditing] = useState<Article | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
 
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   // ── Queries
@@ -89,6 +96,9 @@ export default function Articles() {
             unitPrice: article.unitPrice ?? 0,
             currency: article.currency ?? "MAD",
             initialStock: article.stockQuantity ?? 0,
+            minimumStock: article.minimumStock ?? 0,
+            storageLocation: article.storageLocation ?? "",
+            description: article.description ?? "",
           }
         : defaultForm,
     );
@@ -103,6 +113,9 @@ export default function Articles() {
         unit: form.unit || undefined,
         unitPrice: form.unitPrice,
         currency: form.currency || undefined,
+        minimumStock: form.minimumStock,
+        storageLocation: form.storageLocation || undefined,
+        description: form.description || undefined,
       };
       saveMutation.mutate(payload);
     } else {
@@ -113,6 +126,9 @@ export default function Articles() {
         unitPrice: form.unitPrice,
         currency: form.currency || undefined,
         initialStock: form.initialStock || undefined,
+        minimumStock: form.minimumStock || undefined,
+        storageLocation: form.storageLocation || undefined,
+        description: form.description || undefined,
       };
       saveMutation.mutate(payload);
     }
@@ -126,10 +142,11 @@ export default function Articles() {
       a.category?.toLowerCase().includes(search.toLowerCase()),
   );
 
-  // ── Low stock check
-  const isLowStock = (article: Article) => (article.stockQuantity ?? 0) <= 0;
+  // ── Low stock check — uses minimumStock threshold
+  const isLowStock = (article: Article) =>
+    (article.stockQuantity ?? 0) <= (article.minimumStock ?? 0);
 
-  // ── Columns
+  // ── Columns (match design: Article, Barcode, Unit, Stock, Min Stock, Purchase Cost, Status)
   const columns = [
     {
       header: "Article",
@@ -141,17 +158,17 @@ export default function Articles() {
       ),
     },
     {
-      header: "Unit",
+      header: "Barcode",
       cell: (row: Article) => (
-        <span className="text-xs">{row.unit ?? "—"}</span>
+        <span className="text-xs font-mono text-muted-foreground">
+          {row.barcodeId ? row.barcodeId.split("-").slice(-1)[0] : "—"}
+        </span>
       ),
     },
     {
-      header: "Unit Price",
+      header: "Unit",
       cell: (row: Article) => (
-        <span className="text-xs font-medium">
-          {row.unitPrice?.toLocaleString()} {row.currency ?? "MAD"}
-        </span>
+        <span className="text-xs">{row.unit ?? "—"}</span>
       ),
     },
     {
@@ -169,6 +186,24 @@ export default function Articles() {
           </div>
         );
       },
+    },
+    {
+      header: "Min Stock",
+      cell: (row: Article) => (
+        <span className="text-sm text-muted-foreground">
+          {row.minimumStock ?? 0}
+        </span>
+      ),
+    },
+    {
+      header: "Purchase Cost",
+      cell: (row: Article) => (
+        <span className="text-xs font-medium">
+          {row.unitPrice
+            ? `${row.unitPrice.toLocaleString()} ${row.currency ?? "MAD"}`
+            : "—"}
+        </span>
+      ),
     },
     {
       header: "Status",
@@ -199,7 +234,7 @@ export default function Articles() {
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => setShowDetail(row)}
+            onClick={() => navigate(`/articles/${row.id}`)}
           >
             <Eye className="w-4 h-4" />
           </Button>
@@ -230,61 +265,6 @@ export default function Articles() {
 
       <DataTable columns={columns} data={filtered} isLoading={isLoading} />
 
-      {/* ── Detail Dialog */}
-      {showDetail && (
-        <FormDialog
-          open={!!showDetail}
-          onOpenChange={() => setShowDetail(null)}
-          title={showDetail.name}
-        >
-          <div className="space-y-4">
-            {/* Barcode — generated from article id as fallback */}
-            <div className="p-4 rounded-lg bg-muted/30 text-center">
-              <p className="text-xs text-muted-foreground mb-2">Barcode</p>
-              <BarcodeDisplay
-                barcodeId={showDetail.barcodeId}
-                articleName={showDetail.name}
-                showDownload={true}
-              />
-            </div>
-
-            {/* Stock summary */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-center">
-                <p className="text-2xl font-bold text-success">
-                  {showDetail.stockQuantity ?? 0}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Current Stock
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-center">
-                <p className="text-2xl font-bold text-primary">
-                  {showDetail.unitPrice?.toLocaleString() ?? 0}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Unit Price ({showDetail.currency ?? "MAD"})
-                </p>
-              </div>
-            </div>
-
-            {/* Details */}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span className="text-muted-foreground">Category:</span>{" "}
-                <span className="font-medium">
-                  {showDetail.category ?? "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Unit:</span>{" "}
-                <span className="font-medium">{showDetail.unit ?? "—"}</span>
-              </div>
-            </div>
-          </div>
-        </FormDialog>
-      )}
-
       {/* ── Form Dialog */}
       <FormDialog
         open={showForm}
@@ -311,6 +291,17 @@ export default function Articles() {
             />
           </div>
 
+          {/* Barcode ID — read-only, auto-generated */}
+          <div>
+            <Label>Barcode ID</Label>
+            <Input
+              value={editing?.barcodeId ?? ""}
+              readOnly
+              disabled
+              placeholder="Auto-generated on save"
+            />
+          </div>
+
           {/* Unit */}
           <div>
             <Label>Unit</Label>
@@ -334,9 +325,43 @@ export default function Articles() {
             </Select>
           </div>
 
-          {/* Unit Price */}
+          {/* Current Stock — create only */}
+          {!editing && (
+            <div>
+              <Label>Current Stock</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.initialStock}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    initialStock: parseFloat(e.target.value) || 0,
+                  })
+                }
+              />
+            </div>
+          )}
+
+          {/* Minimum Stock */}
           <div>
-            <Label>Unit Price *</Label>
+            <Label>Minimum Stock</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.minimumStock}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  minimumStock: parseInt(e.target.value) || 0,
+                })
+              }
+            />
+          </div>
+
+          {/* Purchase Cost (was unitPrice) */}
+          <div>
+            <Label>Purchase Cost ({form.currency})</Label>
             <Input
               type="number"
               min={0}
@@ -361,27 +386,33 @@ export default function Articles() {
                 <SelectItem value="MAD">MAD</SelectItem>
                 <SelectItem value="EUR">EUR</SelectItem>
                 <SelectItem value="USD">USD</SelectItem>
+                <SelectItem value="GBP">GBP</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Initial stock — create only */}
-          {!editing && (
-            <div className="col-span-2">
-              <Label>Initial Stock</Label>
-              <Input
-                type="number"
-                min={0}
-                value={form.initialStock}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    initialStock: parseFloat(e.target.value) || 0,
-                  })
-                }
-              />
-            </div>
-          )}
+          {/* Storage Location */}
+          <div className="col-span-2">
+            <Label>Storage Location</Label>
+            <Input
+              value={form.storageLocation}
+              onChange={(e) =>
+                setForm({ ...form, storageLocation: e.target.value })
+              }
+              placeholder="e.g. Warehouse A - Shelf 3"
+            />
+          </div>
+
+          {/* Description */}
+          <div className="col-span-2">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+            />
+          </div>
 
           {/* Actions */}
           <div className="col-span-2 flex justify-end gap-2">

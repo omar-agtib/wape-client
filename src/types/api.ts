@@ -190,10 +190,13 @@ export interface Article {
   name: string;
   category: string;
   unit?: string;
+  minimumStock: number;
   unitPrice: number;
   currency: string;
   barcodeId: string;
   barcodeImageUrl?: string;
+  storageLocation?: string;
+  description?: string;
   stockQuantity: number;
   reservedQuantity: number;
   consumedQuantity: number;

@@ -10,6 +10,7 @@ import TaskDetails from "@/pages/TaskDetails";
 import Personnel from "@/pages/Personnel";
 import Tools from "@/pages/Tools";
 import Articles from "@/pages/Articles";
+import ArticleDetails from "@/pages/ArticleDetails";
 import Stock from "@/pages/Stock";
 import PurchaseOrders from "@/pages/PurchaseOrders";
 import Reception from "@/pages/Reception";
@@ -43,6 +44,7 @@ export const PAGES: Record<string, React.ComponentType> = {
   Personnel,
   Tools,
   Articles,
+  ArticleDetails,
   Stock,
   PurchaseOrders,
   Reception,

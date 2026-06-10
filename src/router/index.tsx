@@ -43,6 +43,7 @@ const appRoutes: AppRoute[] = [
   { path: "/plans", page: "Plans", roles: MANAGERS },
   { path: "/tools", page: "Tools", roles: MANAGERS },
   { path: "/articles", page: "Articles", roles: MANAGERS },
+  { path: "/articles/:id", page: "ArticleDetails", roles: MANAGERS },
   { path: "/stock", page: "Stock", roles: MANAGERS },
   { path: "/receptions", page: "Reception", roles: MANAGERS },
   { path: "/non-conformities", page: "NonConformities", roles: MANAGERS },

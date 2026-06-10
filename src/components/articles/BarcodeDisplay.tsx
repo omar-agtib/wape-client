@@ -26,7 +26,7 @@ export default function BarcodeDisplay({
       try {
         JsBarcode(svgRef.current, barcodeId, {
           format: "CODE128",
-          width: 2,
+          width: 1.5,
           height: 60,
           displayValue: true,
           fontSize: 12,
@@ -112,8 +112,8 @@ export default function BarcodeDisplay({
     );
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <svg ref={svgRef} />
+    <div className="flex flex-col items-center gap-2 w-full">
+      <svg ref={svgRef} className="max-w-full h-auto" />
       {showDownload && (
         <div className="flex gap-2 flex-wrap justify-center">
           <Button
