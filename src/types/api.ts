@@ -175,6 +175,10 @@ export interface Tool {
   category: string;
   serialNumber?: string;
   photoUrl?: string;
+  location?: string;
+  purchaseDate?: string;
+  purchaseCost?: number;
+  assignedProjectId?: string;
   status: ToolStatus;
   createdAt: string;
 }

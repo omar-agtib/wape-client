@@ -408,6 +408,11 @@ export type CreateToolPayload = {
   category: string;
   serialNumber?: string;
   photoUrl?: string;
+  location?: string;
+  purchaseDate?: string;
+  purchaseCost?: number;
+  assignedProjectId?: string;
+  status?: "available" | "in_use" | "maintenance" | "retired";
 };
 
 export type UpdateToolPayload = Partial<CreateToolPayload>;

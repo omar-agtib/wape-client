@@ -5,12 +5,13 @@ import { ArrowRight, ArrowLeft, Plus, Upload } from "lucide-react";
 import {
   toolsService,
   personnelService,
+  projectsService,
   uploadService,
   type CreateToolPayload,
   type UpdateToolPayload,
   type ToolMovementPayload,
 } from "@/services/wape.service";
-import type { Tool, Personnel } from "@/types/api";
+import type { Tool, Personnel, Project } from "@/types/api";
 
 import PageHeader from "@/components/shared/PageHeader";
 import DataTable from "@/components/shared/DataTable";
@@ -53,6 +54,10 @@ interface ToolFormState {
   serialNumber: string;
   photoUrl: string;
   status: ToolStatus;
+  location: string;
+  purchaseDate: string;
+  purchaseCost: number;
+  assignedProjectId: string;
 }
 
 interface MovementFormState {
@@ -67,6 +72,10 @@ const defaultToolForm: ToolFormState = {
   serialNumber: "",
   photoUrl: "",
   status: "available",
+  location: "",
+  purchaseDate: "",
+  purchaseCost: 0,
+  assignedProjectId: "",
 };
 
 const defaultMovForm: MovementFormState = {
@@ -101,6 +110,11 @@ export default function Tools() {
     queryFn: () => personnelService.list({ limit: 100 }),
   });
 
+  const { data: projectsData } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => projectsService.list({ limit: 100 }),
+  });
+
   // Movements for selected tool (only loaded when movement form is open)
   const { data: movementsData } = useQuery({
     queryKey: ["tool-movements", selectedToolId],
@@ -110,6 +124,7 @@ export default function Tools() {
 
   const toolsList = toolsData?.items ?? [];
   const personnelList = (personnelData?.items ?? []) as Personnel[];
+  const projects = (projectsData?.items ?? []) as Project[];
   const movements = (movementsData?.items ?? []) as ToolMovement[];
 
   // ── Mutations
@@ -150,6 +165,10 @@ export default function Tools() {
             serialNumber: tool.serialNumber ?? "",
             photoUrl: tool.photoUrl ?? "",
             status: (tool.status as ToolStatus) ?? "available",
+            location: tool.location ?? "",
+            purchaseDate: tool.purchaseDate ?? "",
+            purchaseCost: tool.purchaseCost ?? 0,
+            assignedProjectId: tool.assignedProjectId ?? "",
           }
         : defaultToolForm,
     );
@@ -177,23 +196,23 @@ export default function Tools() {
     }
   };
 
+  const buildToolPayload = (): CreateToolPayload => ({
+    name: form.name,
+    category: form.category,
+    serialNumber: form.serialNumber || undefined,
+    photoUrl: form.photoUrl || undefined,
+    status: form.status,
+    location: form.location || undefined,
+    purchaseDate: form.purchaseDate || undefined,
+    purchaseCost: form.purchaseCost || undefined,
+    assignedProjectId: form.assignedProjectId || undefined,
+  });
+
   const handleSaveTool = () => {
     if (editing) {
-      const payload: UpdateToolPayload = {
-        name: form.name || undefined,
-        category: form.category,
-        serialNumber: form.serialNumber || undefined,
-        photoUrl: form.photoUrl || undefined,
-      };
-      saveMutation.mutate(payload);
+      saveMutation.mutate(buildToolPayload() as UpdateToolPayload);
     } else {
-      const payload: CreateToolPayload = {
-        name: form.name,
-        category: form.category,
-        serialNumber: form.serialNumber || undefined,
-        photoUrl: form.photoUrl || undefined,
-      };
-      saveMutation.mutate(payload);
+      saveMutation.mutate(buildToolPayload());
     }
   };
 
@@ -243,6 +262,33 @@ export default function Tools() {
       cell: (row: Tool) => (
         <span className="capitalize text-xs">
           {row.category?.replace("_", " ")}
+        </span>
+      ),
+    },
+    {
+      header: "Location",
+      cell: (row: Tool) => (
+        <span className="text-sm text-muted-foreground">
+          {row.location || "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Project",
+      cell: (row: Tool) => {
+        const project = projects.find((p) => p.id === row.assignedProjectId);
+        return (
+          <span className="text-sm text-muted-foreground">
+            {project?.name ?? "—"}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Cost",
+      cell: (row: Tool) => (
+        <span className="text-xs font-medium">
+          {row.purchaseCost ? `${row.purchaseCost.toLocaleString()}` : "—"}
         </span>
       ),
     },
@@ -417,8 +463,29 @@ export default function Tools() {
             </Select>
           </div>
 
+          {/* Status */}
+          <div>
+            <Label>Status</Label>
+            <Select
+              value={form.status}
+              onValueChange={(v) =>
+                setForm({ ...form, status: v as ToolStatus })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="in_use">In Use</SelectItem>
+                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="retired">Retired</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Serial Number */}
-          <div className={editing ? "col-span-2" : ""}>
+          <div>
             <Label>Serial Number</Label>
             <Input
               value={form.serialNumber}
@@ -426,6 +493,64 @@ export default function Tools() {
                 setForm({ ...form, serialNumber: e.target.value })
               }
             />
+          </div>
+
+          {/* Location */}
+          <div>
+            <Label>Location</Label>
+            <Input
+              value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+              placeholder="e.g. Warehouse"
+            />
+          </div>
+
+          {/* Purchase Date */}
+          <div>
+            <Label>Purchase Date</Label>
+            <Input
+              type="date"
+              value={form.purchaseDate}
+              onChange={(e) =>
+                setForm({ ...form, purchaseDate: e.target.value })
+              }
+            />
+          </div>
+
+          {/* Purchase Cost */}
+          <div>
+            <Label>Purchase Cost</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.purchaseCost}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  purchaseCost: parseFloat(e.target.value) || 0,
+                })
+              }
+            />
+          </div>
+
+          {/* Assigned Project */}
+          <div className="col-span-2">
+            <Label>Assigned Project</Label>
+            <Select
+              value={form.assignedProjectId || undefined}
+              onValueChange={(v) => setForm({ ...form, assignedProjectId: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Actions */}
