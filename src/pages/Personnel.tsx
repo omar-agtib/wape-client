@@ -3,10 +3,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   personnelService,
+  projectsService,
   type CreatePersonnelPayload,
   type UpdatePersonnelPayload,
 } from "@/services/wape.service";
-import type { Personnel } from "@/types/api";
+import type {
+  Personnel,
+  Project,
+  PersonnelStatus,
+  ContractType,
+} from "@/types/api";
 
 import PageHeader from "@/components/shared/PageHeader";
 import DataTable from "@/components/shared/DataTable";
@@ -24,11 +30,19 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type RoleFilter = "all" | string;
+type StatusFilter = "all" | PersonnelStatus;
 
 interface FormState {
   fullName: string;
-  role: string;
+  role: string; // Function
+  jobTitle: string;
+  status: PersonnelStatus;
+  contractType: ContractType | "";
+  contractStart: string;
+  contractEnd: string;
+  weeklyHours: number;
+  salary: number;
+  assignedProjectId: string;
   costPerHour: number;
   currency: "MAD" | "USD" | "EUR" | "GBP";
   email: string;
@@ -39,6 +53,14 @@ interface FormState {
 const defaultForm: FormState = {
   fullName: "",
   role: "",
+  jobTitle: "",
+  status: "active",
+  contractType: "",
+  contractStart: "",
+  contractEnd: "",
+  weeklyHours: 0,
+  salary: 0,
+  assignedProjectId: "",
   costPerHour: 0,
   currency: "MAD",
   email: "",
@@ -46,11 +68,33 @@ const defaultForm: FormState = {
   address: "",
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const STATUS_STYLES: Record<string, string> = {
+  active: "bg-green-100 text-green-700",
+  on_leave: "bg-amber-100 text-amber-700",
+  inactive: "bg-muted text-muted-foreground",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  on_leave: "On Leave",
+  inactive: "Inactive",
+};
+
+const CONTRACT_LABELS: Record<string, string> = {
+  cdi: "CDI",
+  cdd: "CDD",
+  temporary: "Temporary",
+  internship: "Internship",
+  freelance: "Freelance",
+};
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Personnel() {
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Personnel | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
@@ -63,7 +107,13 @@ export default function Personnel() {
     queryFn: () => personnelService.list({ limit: 100 }),
   });
 
+  const { data: projectsData } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => projectsService.list({ limit: 100 }),
+  });
+
   const personnelList = personnelData?.items ?? [];
+  const projects = (projectsData?.items ?? []) as Project[];
 
   // ── Mutations
   const saveMutation = useMutation({
@@ -86,6 +136,14 @@ export default function Personnel() {
         ? {
             fullName: person.fullName ?? "",
             role: person.role ?? "",
+            jobTitle: person.jobTitle ?? "",
+            status: person.status ?? "active",
+            contractType: (person.contractType as ContractType) ?? "",
+            contractStart: person.contractStart ?? "",
+            contractEnd: person.contractEnd ?? "",
+            weeklyHours: person.weeklyHours ?? 0,
+            salary: person.salary ?? 0,
+            assignedProjectId: person.assignedProjectId ?? "",
             costPerHour: person.costPerHour ?? 0,
             currency: (person.currency as FormState["currency"]) ?? "MAD",
             email: person.email ?? "",
@@ -97,30 +155,26 @@ export default function Personnel() {
     setShowForm(true);
   };
 
+  const buildPayload = (): CreatePersonnelPayload => ({
+    fullName: form.fullName,
+    role: form.role,
+    jobTitle: form.jobTitle || undefined,
+    status: form.status,
+    contractType: form.contractType || undefined,
+    contractStart: form.contractStart || undefined,
+    contractEnd: form.contractEnd || undefined,
+    weeklyHours: form.weeklyHours || undefined,
+    salary: form.salary || undefined,
+    assignedProjectId: form.assignedProjectId || undefined,
+    costPerHour: form.costPerHour,
+    currency: form.currency,
+    email: form.email || undefined,
+    phone: form.phone || undefined,
+    address: form.address || undefined,
+  });
+
   const handleSave = () => {
-    if (editing) {
-      const payload: UpdatePersonnelPayload = {
-        fullName: form.fullName || undefined,
-        role: form.role || undefined,
-        costPerHour: form.costPerHour,
-        currency: form.currency,
-        email: form.email || undefined,
-        phone: form.phone || undefined,
-        address: form.address || undefined,
-      };
-      saveMutation.mutate(payload);
-    } else {
-      const payload: CreatePersonnelPayload = {
-        fullName: form.fullName,
-        role: form.role,
-        costPerHour: form.costPerHour,
-        currency: form.currency,
-        email: form.email || undefined,
-        phone: form.phone || undefined,
-        address: form.address || undefined,
-      };
-      saveMutation.mutate(payload);
-    }
+    saveMutation.mutate(buildPayload());
   };
 
   // ── Filtering
@@ -129,31 +183,65 @@ export default function Personnel() {
       !search ||
       p.fullName?.toLowerCase().includes(search.toLowerCase()) ||
       p.role?.toLowerCase().includes(search.toLowerCase());
-    const matchRole = roleFilter === "all" || p.role === roleFilter;
-    return matchSearch && matchRole;
+    const matchStatus = statusFilter === "all" || p.status === statusFilter;
+    return matchSearch && matchStatus;
   });
 
-  // Derive unique roles for filter
-  const uniqueRoles = Array.from(
-    new Set(personnelList.map((p) => p.role).filter(Boolean)),
-  );
-
-  // ── Columns
+  // ── Columns (match design: Name, Function, Contract, Project, Hours/Week, Status, Contact)
   const columns = [
     {
       header: "Name",
       cell: (row: Personnel) => (
         <div>
           <p className="font-medium text-foreground">{row.fullName}</p>
-          <p className="text-xs text-muted-foreground">{row.role}</p>
+          {row.jobTitle && (
+            <p className="text-xs text-muted-foreground">{row.jobTitle}</p>
+          )}
         </div>
       ),
     },
     {
-      header: "Cost / Hour",
+      header: "Function",
       cell: (row: Personnel) => (
-        <span className="text-xs font-medium">
-          {row.costPerHour?.toLocaleString()} {row.currency ?? "MAD"}
+        <span className="text-sm">{row.role || "—"}</span>
+      ),
+    },
+    {
+      header: "Contract",
+      cell: (row: Personnel) => (
+        <span className="text-sm">
+          {row.contractType ? CONTRACT_LABELS[row.contractType] : "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Project",
+      cell: (row: Personnel) => {
+        const project = projects.find((p) => p.id === row.assignedProjectId);
+        return (
+          <span className="text-sm text-muted-foreground">
+            {project?.name ?? "—"}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Hours/Week",
+      cell: (row: Personnel) => (
+        <span className="text-sm">
+          {row.weeklyHours ? `${row.weeklyHours}h` : "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Status",
+      cell: (row: Personnel) => (
+        <span
+          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+            STATUS_STYLES[row.status] ?? "bg-muted text-muted-foreground"
+          }`}
+        >
+          {STATUS_LABELS[row.status] ?? row.status}
         </span>
       ),
     },
@@ -193,17 +281,18 @@ export default function Personnel() {
         searchValue={search}
         onSearch={setSearch}
       >
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+        >
           <SelectTrigger className="w-36 bg-card">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Roles</SelectItem>
-            {uniqueRoles.map((role) => (
-              <SelectItem key={role} value={role}>
-                {role}
-              </SelectItem>
-            ))}
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="on_leave">On Leave</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
       </PageHeader>
@@ -225,14 +314,138 @@ export default function Personnel() {
             />
           </div>
 
-          {/* Role */}
+          {/* Job Title */}
           <div>
-            <Label>Role *</Label>
+            <Label>Job Title</Label>
+            <Input
+              value={form.jobTitle}
+              onChange={(e) => setForm({ ...form, jobTitle: e.target.value })}
+              placeholder="e.g. Senior Engineer"
+            />
+          </div>
+
+          {/* Function (role) */}
+          <div>
+            <Label>Function *</Label>
             <Input
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              placeholder="e.g. Engineer, Worker, Manager"
+              placeholder="e.g. ferrayeur, Worker"
             />
+          </div>
+
+          {/* Contract Type */}
+          <div>
+            <Label>Contract Type</Label>
+            <Select
+              value={form.contractType || undefined}
+              onValueChange={(v) =>
+                setForm({ ...form, contractType: v as ContractType })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cdi">CDI</SelectItem>
+                <SelectItem value="cdd">CDD</SelectItem>
+                <SelectItem value="temporary">Temporary</SelectItem>
+                <SelectItem value="internship">Internship</SelectItem>
+                <SelectItem value="freelance">Freelance</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Status */}
+          <div>
+            <Label>Status</Label>
+            <Select
+              value={form.status}
+              onValueChange={(v) =>
+                setForm({ ...form, status: v as PersonnelStatus })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="on_leave">On Leave</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Contract Start */}
+          <div>
+            <Label>Contract Start</Label>
+            <Input
+              type="date"
+              value={form.contractStart}
+              onChange={(e) =>
+                setForm({ ...form, contractStart: e.target.value })
+              }
+            />
+          </div>
+
+          {/* Contract End */}
+          <div>
+            <Label>Contract End</Label>
+            <Input
+              type="date"
+              value={form.contractEnd}
+              onChange={(e) =>
+                setForm({ ...form, contractEnd: e.target.value })
+              }
+            />
+          </div>
+
+          {/* Salary */}
+          <div>
+            <Label>Salary</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.salary}
+              onChange={(e) =>
+                setForm({ ...form, salary: parseFloat(e.target.value) || 0 })
+              }
+            />
+          </div>
+
+          {/* Weekly Hours */}
+          <div>
+            <Label>Weekly Hours</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.weeklyHours}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  weeklyHours: parseFloat(e.target.value) || 0,
+                })
+              }
+            />
+          </div>
+
+          {/* Cost per hour — needed for task costing */}
+          <div>
+            <Label>Cost / Hour *</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.costPerHour}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  costPerHour: parseFloat(e.target.value) || 0,
+                })
+              }
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Used to calculate task costs
+            </p>
           </div>
 
           {/* Currency */}
@@ -256,20 +469,24 @@ export default function Personnel() {
             </Select>
           </div>
 
-          {/* Cost per hour */}
+          {/* Assigned Project */}
           <div className="col-span-2">
-            <Label>Cost per Hour *</Label>
-            <Input
-              type="number"
-              min={0}
-              value={form.costPerHour}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  costPerHour: parseFloat(e.target.value) || 0,
-                })
-              }
-            />
+            <Label>Assigned Project</Label>
+            <Select
+              value={form.assignedProjectId || undefined}
+              onValueChange={(v) => setForm({ ...form, assignedProjectId: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Email */}
@@ -290,6 +507,7 @@ export default function Personnel() {
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
           </div>
+
           {/* Address */}
           <div className="col-span-2">
             <Label>Address</Label>

@@ -351,7 +351,15 @@ export const tasksService = {
 
 export type CreatePersonnelPayload = {
   fullName: string;
-  role: string;
+  role: string; // Function
+  jobTitle?: string;
+  status?: "active" | "on_leave" | "inactive";
+  contractType?: "cdi" | "cdd" | "temporary" | "internship" | "freelance";
+  contractStart?: string;
+  contractEnd?: string;
+  weeklyHours?: number;
+  salary?: number;
+  assignedProjectId?: string;
   costPerHour: number;
   currency?: string;
   email?: string;

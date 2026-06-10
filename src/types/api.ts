@@ -136,11 +136,27 @@ export interface Task {
 }
 
 // ── Personnel ─────────────────────────────────────────────────────────────────
+export type PersonnelStatus = "active" | "on_leave" | "inactive";
+export type ContractType =
+  | "cdi"
+  | "cdd"
+  | "temporary"
+  | "internship"
+  | "freelance";
+
 export interface Personnel {
   id: string;
   tenantId: string;
   fullName: string;
-  role: string;
+  role: string; // Function
+  jobTitle?: string;
+  status: PersonnelStatus;
+  contractType?: ContractType;
+  contractStart?: string;
+  contractEnd?: string;
+  weeklyHours?: number;
+  salary?: number;
+  assignedProjectId?: string;
   costPerHour: number;
   currency: string;
   email?: string;
