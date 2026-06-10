@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ArrowLeft, Plus, Upload } from "lucide-react";
-
+import { format } from "date-fns";
+ 
 import {
   toolsService,
   personnelService,
@@ -10,9 +11,10 @@ import {
   type CreateToolPayload,
   type UpdateToolPayload,
   type ToolMovementPayload,
+  type RecentToolMovement,
 } from "@/services/wape.service";
 import type { Tool, Personnel, Project } from "@/types/api";
-
+ 
 import PageHeader from "@/components/shared/PageHeader";
 import DataTable from "@/components/shared/DataTable";
 import StatusBadge from "@/components/shared/StatusBadge";
@@ -29,9 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
+ 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
+ 
 type ToolStatus = "available" | "in_use" | "maintenance" | "retired";
 type ToolCategory =
   | "hand_tools"
@@ -41,13 +43,7 @@ type ToolCategory =
   | "measurement"
   | "other";
 type MovementType = "OUT" | "IN";
-
-interface ToolMovement {
-  id?: string;
-  movementType?: string;
-  notes?: string;
-}
-
+ 
 interface ToolFormState {
   name: string;
   category: ToolCategory;
@@ -59,13 +55,15 @@ interface ToolFormState {
   purchaseCost: number;
   assignedProjectId: string;
 }
-
+ 
 interface MovementFormState {
   movementType: MovementType;
   responsibleId: string;
+  projectId: string;
+  movementDate: string;
   notes: string;
 }
-
+ 
 const defaultToolForm: ToolFormState = {
   name: "",
   category: "other",
@@ -77,15 +75,28 @@ const defaultToolForm: ToolFormState = {
   purchaseCost: 0,
   assignedProjectId: "",
 };
-
+ 
 const defaultMovForm: MovementFormState = {
   movementType: "OUT",
   responsibleId: "",
+  projectId: "",
+  movementDate: "",
   notes: "",
 };
-
+ 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+ 
+function fmtDate(value?: string | null): string {
+  if (!value) return "—";
+  try {
+    return format(new Date(value), "MMM d, yyyy");
+  } catch {
+    return "—";
+  }
+}
+ 
 // ── Component ─────────────────────────────────────────────────────────────────
-
+ 
 export default function Tools() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ToolStatus>("all");
@@ -96,37 +107,35 @@ export default function Tools() {
   const [form, setForm] = useState<ToolFormState>(defaultToolForm);
   const [movForm, setMovForm] = useState<MovementFormState>(defaultMovForm);
   const [uploading, setUploading] = useState(false);
-
+ 
   const queryClient = useQueryClient();
-
+ 
   // ── Queries
   const { data: toolsData, isLoading } = useQuery({
     queryKey: ["tools"],
     queryFn: () => toolsService.list({ limit: 100 }),
   });
-
+ 
   const { data: personnelData } = useQuery({
     queryKey: ["personnel"],
     queryFn: () => personnelService.list({ limit: 100 }),
   });
-
+ 
   const { data: projectsData } = useQuery({
     queryKey: ["projects"],
     queryFn: () => projectsService.list({ limit: 100 }),
   });
-
-  // Movements for selected tool (only loaded when movement form is open)
-  const { data: movementsData } = useQuery({
-    queryKey: ["tool-movements", selectedToolId],
-    queryFn: () => toolsService.listMovements(selectedToolId, { limit: 20 }),
-    enabled: !!selectedToolId,
+ 
+  const { data: recentMovements } = useQuery({
+    queryKey: ["tool-movements-recent"],
+    queryFn: () => toolsService.getRecentMovements(),
   });
-
+ 
   const toolsList = toolsData?.items ?? [];
   const personnelList = (personnelData?.items ?? []) as Personnel[];
   const projects = (projectsData?.items ?? []) as Project[];
-  const movements = (movementsData?.items ?? []) as ToolMovement[];
-
+  const movements = (recentMovements ?? []) as RecentToolMovement[];
+ 
   // ── Mutations
   const saveMutation = useMutation({
     mutationFn: (data: CreateToolPayload | UpdateToolPayload) =>
@@ -139,21 +148,19 @@ export default function Tools() {
       setEditing(null);
     },
   });
-
+ 
   const movementMutation = useMutation({
     mutationFn: (data: ToolMovementPayload) =>
       toolsService.addMovement(selectedToolId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tools"] });
-      queryClient.invalidateQueries({
-        queryKey: ["tool-movements", selectedToolId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["tool-movements-recent"] });
       setShowMovementForm(false);
       setMovForm(defaultMovForm);
       setSelectedToolId("");
     },
   });
-
+ 
   // ── Helpers
   const openForm = (tool?: Tool) => {
     setEditing(tool ?? null);
@@ -174,13 +181,13 @@ export default function Tools() {
     );
     setShowForm(true);
   };
-
+ 
   const openMovementForm = (toolId?: string) => {
     setSelectedToolId(toolId ?? "");
     setMovForm(defaultMovForm);
     setShowMovementForm(true);
   };
-
+ 
   const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -195,7 +202,7 @@ export default function Tools() {
       setUploading(false);
     }
   };
-
+ 
   const buildToolPayload = (): CreateToolPayload => ({
     name: form.name,
     category: form.category,
@@ -207,7 +214,7 @@ export default function Tools() {
     purchaseCost: form.purchaseCost || undefined,
     assignedProjectId: form.assignedProjectId || undefined,
   });
-
+ 
   const handleSaveTool = () => {
     if (editing) {
       saveMutation.mutate(buildToolPayload() as UpdateToolPayload);
@@ -215,16 +222,18 @@ export default function Tools() {
       saveMutation.mutate(buildToolPayload());
     }
   };
-
+ 
   const handleSaveMovement = () => {
     const payload: ToolMovementPayload = {
       movementType: movForm.movementType,
       responsibleId: movForm.responsibleId,
+      projectId: movForm.projectId || undefined,
+      movementDate: movForm.movementDate || undefined,
       notes: movForm.notes || undefined,
     };
     movementMutation.mutate(payload);
   };
-
+ 
   // ── Filtering
   const filtered = toolsList.filter((t) => {
     const matchSearch =
@@ -232,8 +241,8 @@ export default function Tools() {
     const matchStatus = statusFilter === "all" || t.status === statusFilter;
     return matchSearch && matchStatus;
   });
-
-  // ── Columns
+ 
+  // ── Columns (tools table)
   const columns = [
     {
       header: "Tool",
@@ -320,11 +329,24 @@ export default function Tools() {
       ),
     },
   ];
-
+ 
+  // ── Columns (recent movements table)
   const movementColumns = [
     {
+      header: "Date",
+      cell: (row: RecentToolMovement) => (
+        <span className="text-sm">{fmtDate(row.movementDate)}</span>
+      ),
+    },
+    {
+      header: "Tool",
+      cell: (row: RecentToolMovement) => (
+        <span className="text-sm font-medium">{row.toolName}</span>
+      ),
+    },
+    {
       header: "Type",
-      cell: (row: ToolMovement) => (
+      cell: (row: RecentToolMovement) => (
         <Badge
           variant="outline"
           className={`text-xs ${
@@ -343,15 +365,29 @@ export default function Tools() {
       ),
     },
     {
+      header: "Project",
+      cell: (row: RecentToolMovement) => (
+        <span className="text-sm text-muted-foreground">
+          {row.projectName ?? "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Responsible",
+      cell: (row: RecentToolMovement) => (
+        <span className="text-sm">{row.responsibleName ?? "—"}</span>
+      ),
+    },
+    {
       header: "Notes",
-      cell: (row: ToolMovement) => (
+      cell: (row: RecentToolMovement) => (
         <span className="text-xs text-muted-foreground">
           {row.notes ?? "—"}
         </span>
       ),
     },
   ];
-
+ 
   // ── Render
   return (
     <div className="space-y-6">
@@ -382,19 +418,23 @@ export default function Tools() {
           <Plus className="w-4 h-4 mr-1" /> Tool Movement
         </Button>
       </PageHeader>
-
+ 
       <DataTable columns={columns} data={filtered} isLoading={isLoading} />
-
-      {/* Recent movements for selected tool */}
-      {selectedToolId && movements.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-            Recent Movements
-          </h3>
+ 
+      {/* Recent Tool Movements — always visible */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+          Recent Tool Movements
+        </h3>
+        {movements.length > 0 ? (
           <DataTable columns={movementColumns} data={movements} />
-        </div>
-      )}
-
+        ) : (
+          <p className="text-sm text-muted-foreground py-4">
+            No movements recorded yet.
+          </p>
+        )}
+      </div>
+ 
       {/* ── Tool Form */}
       <FormDialog
         open={showForm}
@@ -410,7 +450,7 @@ export default function Tools() {
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </div>
-
+ 
           {/* Photo upload */}
           <div className="col-span-2">
             <Label>Tool Photo</Label>
@@ -437,7 +477,7 @@ export default function Tools() {
               />
             )}
           </div>
-
+ 
           {/* Category */}
           <div>
             <Label>Category</Label>
@@ -462,7 +502,7 @@ export default function Tools() {
               </SelectContent>
             </Select>
           </div>
-
+ 
           {/* Status */}
           <div>
             <Label>Status</Label>
@@ -483,7 +523,7 @@ export default function Tools() {
               </SelectContent>
             </Select>
           </div>
-
+ 
           {/* Serial Number */}
           <div>
             <Label>Serial Number</Label>
@@ -494,7 +534,7 @@ export default function Tools() {
               }
             />
           </div>
-
+ 
           {/* Location */}
           <div>
             <Label>Location</Label>
@@ -504,7 +544,7 @@ export default function Tools() {
               placeholder="e.g. Warehouse"
             />
           </div>
-
+ 
           {/* Purchase Date */}
           <div>
             <Label>Purchase Date</Label>
@@ -516,7 +556,7 @@ export default function Tools() {
               }
             />
           </div>
-
+ 
           {/* Purchase Cost */}
           <div>
             <Label>Purchase Cost</Label>
@@ -532,13 +572,15 @@ export default function Tools() {
               }
             />
           </div>
-
+ 
           {/* Assigned Project */}
           <div className="col-span-2">
             <Label>Assigned Project</Label>
             <Select
               value={form.assignedProjectId || undefined}
-              onValueChange={(v) => setForm({ ...form, assignedProjectId: v })}
+              onValueChange={(v) =>
+                setForm({ ...form, assignedProjectId: v })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select project" />
@@ -552,7 +594,7 @@ export default function Tools() {
               </SelectContent>
             </Select>
           </div>
-
+ 
           {/* Actions */}
           <div className="col-span-2 flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowForm(false)}>
@@ -567,7 +609,7 @@ export default function Tools() {
           </div>
         </div>
       </FormDialog>
-
+ 
       {/* ── Movement Form */}
       <FormDialog
         open={showMovementForm}
@@ -594,7 +636,7 @@ export default function Tools() {
               </SelectContent>
             </Select>
           </div>
-
+ 
           {/* Movement type */}
           <div>
             <Label>Movement Type *</Label>
@@ -613,7 +655,19 @@ export default function Tools() {
               </SelectContent>
             </Select>
           </div>
-
+ 
+          {/* Date */}
+          <div>
+            <Label>Date</Label>
+            <Input
+              type="date"
+              value={movForm.movementDate}
+              onChange={(e) =>
+                setMovForm({ ...movForm, movementDate: e.target.value })
+              }
+            />
+          </div>
+ 
           {/* Responsible person */}
           <div>
             <Label>Responsible Person *</Label>
@@ -635,7 +689,27 @@ export default function Tools() {
               </SelectContent>
             </Select>
           </div>
-
+ 
+          {/* Project */}
+          <div>
+            <Label>Project</Label>
+            <Select
+              value={movForm.projectId || undefined}
+              onValueChange={(v) => setMovForm({ ...movForm, projectId: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+ 
           {/* Notes */}
           <div className="col-span-2">
             <Label>Notes</Label>
@@ -646,7 +720,7 @@ export default function Tools() {
               }
             />
           </div>
-
+ 
           {/* Actions */}
           <div className="col-span-2 flex justify-end gap-2">
             <Button

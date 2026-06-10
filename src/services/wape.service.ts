@@ -421,7 +421,19 @@ export type UpdateToolPayload = Partial<CreateToolPayload>;
 export type ToolMovementPayload = {
   movementType: "OUT" | "IN";
   responsibleId: string; // personnel ID
+  projectId?: string;
+  movementDate?: string; // ISO date (yyyy-mm-dd)
   notes?: string;
+};
+
+export type RecentToolMovement = {
+  id: string;
+  movementType: "OUT" | "IN";
+  movementDate: string;
+  notes?: string | null;
+  toolName: string;
+  responsibleName?: string | null;
+  projectName?: string | null;
 };
 
 export const toolsService = {
@@ -467,6 +479,14 @@ export const toolsService = {
       api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
         `/tools/${id}/movements`,
         { params },
+      ),
+    ),
+
+  // GET /tools/movements/recent — tenant-wide recent movements with names
+  getRecentMovements: () =>
+    extractData(
+      api.get<{ success: boolean; data: RecentToolMovement[] }>(
+        "/tools/movements/recent",
       ),
     ),
 };
