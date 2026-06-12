@@ -543,6 +543,16 @@ export const articlesService = {
 // STOCK MOVEMENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
+export type CreateStockMovementPayload = {
+  articleId: string;
+  movementType: "incoming" | "consumed";
+  quantity: number;
+  movementDate?: string;
+  responsibleId?: string;
+  projectId?: string;
+  notes?: string;
+};
+
 export const stockService = {
   // GET /stock/movements — paginated, filter by articleId / projectId / type
   movements: (params: ListParams = {}) =>
@@ -551,6 +561,11 @@ export const stockService = {
         "/stock/movements",
         { params },
       ),
+    ),
+  // POST /stock/movements — create a manual IN/OUT movement
+  create: (body: CreateStockMovementPayload) =>
+    extractData(
+      api.post<{ success: boolean; data: unknown }>("/stock/movements", body),
     ),
 };
 
