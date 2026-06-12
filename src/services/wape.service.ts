@@ -9,6 +9,7 @@ import type {
   NonConformity,
   Invoice,
   PurchaseOrder,
+  PurchaseOrderListRow,
   FinanceDashboard,
   PaginatedResult,
   UploadResult,
@@ -683,20 +684,22 @@ export type PurchaseOrderLine = {
 };
 
 export type CreatePurchaseOrderPayload = {
-  supplierId: string; // must be contactType=supplier (RG08)
+  supplierId: string;
   projectId?: string;
   currency?: string;
+  orderDate?: string;
+  expectedDelivery?: string;
   notes?: string;
-  lines: PurchaseOrderLine[]; // backend field is "lines" not "items"
+  lines: PurchaseOrderLine[];
 };
 
 export const purchaseOrdersService = {
   list: (params: ListParams = {}) =>
     extractData(
-      api.get<{ success: boolean; data: PaginatedResult<PurchaseOrder> }>(
-        "/purchase-orders",
-        { params },
-      ),
+      api.get<{
+        success: boolean;
+        data: PaginatedResult<PurchaseOrderListRow>;
+      }>("/purchase-orders", { params }),
     ),
 
   get: (id: string) =>
@@ -719,6 +722,14 @@ export const purchaseOrdersService = {
     extractData(
       api.patch<{ success: boolean; data: PurchaseOrder }>(
         `/purchase-orders/${id}/confirm`,
+      ),
+    ),
+
+  // PATCH /purchase-orders/:id/cancel
+  cancel: (id: string) =>
+    extractData(
+      api.patch<{ success: boolean; data: PurchaseOrder }>(
+        `/purchase-orders/${id}/cancel`,
       ),
     ),
 };

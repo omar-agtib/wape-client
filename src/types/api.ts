@@ -225,7 +225,8 @@ export type PurchaseOrderStatus =
   | "draft"
   | "confirmed"
   | "partial"
-  | "completed";
+  | "completed"
+  | "cancelled";
 
 export interface PurchaseOrder {
   id: string;
@@ -234,12 +235,29 @@ export interface PurchaseOrder {
   supplierId: string;
   projectId?: string;
   orderDate: string;
+  expectedDelivery?: string;
   status: PurchaseOrderStatus;
   currency: string;
   totalAmount: number;
   notes?: string;
   createdBy: string;
   createdAt: string;
+}
+
+export interface PurchaseOrderListRow {
+  id: string;
+  orderNumber: string;
+  supplierId?: string;
+  supplierName?: string;
+  projectId?: string;
+  projectName?: string;
+  status: PurchaseOrderStatus;
+  currency: string;
+  totalAmount: number;
+  orderDate: string;
+  expectedDelivery?: string;
+  notes?: string;
+  lineCount: string | number;
 }
 
 // ── Invoices ──────────────────────────────────────────────────────────────────
