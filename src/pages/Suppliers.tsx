@@ -9,7 +9,7 @@ import {
   type CreateContactPayload,
   type UpdateContactPayload,
 } from "@/services/wape.service";
-import type { Contact, PurchaseOrder } from "@/types/api";
+import type { Contact, PurchaseOrderListRow } from "@/types/api";
 
 import PageHeader from "@/components/shared/PageHeader";
 import DataTable from "@/components/shared/DataTable";
@@ -92,7 +92,7 @@ export default function SuppliersPage() {
   });
 
   const suppliers = suppliersData?.items ?? [];
-  const purchaseOrders = (ordersData?.items ?? []) as PurchaseOrder[];
+  const purchaseOrders = (ordersData?.items ?? []) as PurchaseOrderListRow[];
   const viewingDocs = (viewingDocsData ?? []) as ContactDoc[];
 
   // ── Mutations

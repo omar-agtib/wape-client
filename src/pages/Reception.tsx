@@ -8,7 +8,7 @@ import {
   purchaseOrdersService,
   personnelService,
 } from "@/services/wape.service";
-import type { PurchaseOrder, Personnel } from "@/types/api";
+import type { Personnel, PurchaseOrderListRow } from "@/types/api";
 
 import PageHeader from "@/components/shared/PageHeader";
 import DataTable from "@/components/shared/DataTable";
@@ -103,7 +103,8 @@ export default function ReceptionPage() {
 
   const personnelList = (personnelData?.items ?? []) as Personnel[];
   const receptions = (receptionsData?.items ?? []) as Reception[];
-  const purchaseOrders = (purchaseOrdersData?.items ?? []) as PurchaseOrder[];
+  const purchaseOrders = (purchaseOrdersData?.items ??
+    []) as PurchaseOrderListRow[];
 
   // ── Mutations
   const receiveMutation = useMutation({
