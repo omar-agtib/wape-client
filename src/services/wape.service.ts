@@ -10,6 +10,9 @@ import type {
   Invoice,
   PurchaseOrder,
   PurchaseOrderListRow,
+  ReceptionListRow,
+  CreateReceptionPayload,
+  ReceivePayload,
   FinanceDashboard,
   PaginatedResult,
   UploadResult,
@@ -741,17 +744,21 @@ export const purchaseOrdersService = {
 export const receptionsService = {
   list: (params: ListParams = {}) =>
     extractData(
-      api.get<{ success: boolean; data: PaginatedResult<unknown> }>(
+      api.get<{ success: boolean; data: PaginatedResult<ReceptionListRow> }>(
         "/receptions",
         { params },
       ),
     ),
-
+  // POST /receptions → manual New Reception (PO-linked, manual lines, or header-only)
+  create: (body: CreateReceptionPayload) =>
+    extractData(
+      api.post<{ success: boolean; data: ReceptionListRow[] }>(
+        "/receptions",
+        body,
+      ),
+    ),
   // POST /receptions/:id/receive → W6: increments stock, updates PO status
-  receive: (
-    id: string,
-    body: { receivedQuantity: number; notes?: string; receivedBy?: string },
-  ) =>
+  receive: (id: string, body: ReceivePayload) =>
     extractData(
       api.post<{ success: boolean; data: unknown }>(
         `/receptions/${id}/receive`,

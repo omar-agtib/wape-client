@@ -260,6 +260,63 @@ export interface PurchaseOrderListRow {
   lineCount: string | number;
 }
 
+
+// ─── Receptions ──────────────────────────────────────────────────────────────
+
+export type ReceptionStatus = "pending" | "partial" | "completed";
+
+// A single reception row as returned by GET /receptions
+export interface ReceptionListRow {
+  id: string;
+  tenantId: string;
+  purchaseOrderId?: string | null;
+  purchaseOrderLineId?: string | null;
+  articleId?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  projectId?: string | null;
+  deliveryDate?: string | null;
+  expectedQuantity?: number | null;
+  receivedQuantity: number;
+  rejectedQuantity: number;
+  receivedBy?: string | null;
+  receivedByName?: string | null;
+  receivedAt?: string | null;
+  status: ReceptionStatus;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// A line in the manual-create payload (used when no PO is linked)
+export interface CreateReceptionLinePayload {
+  articleId: string;
+  expectedQuantity: number;
+  receivedQuantity?: number;
+  rejectedQuantity?: number;
+}
+
+// Body for POST /receptions (manual New Reception)
+export interface CreateReceptionPayload {
+  purchaseOrderId?: string;
+  supplierId?: string;
+  supplierName?: string;
+  projectId?: string;
+  deliveryDate?: string;
+  receivedByName?: string;
+  receivedBy?: string;
+  notes?: string;
+  lines?: CreateReceptionLinePayload[];
+}
+
+// Body for POST /receptions/:id/receive (W6 — process a line)
+export interface ReceivePayload {
+  receivedQuantity: number;
+  rejectedQuantity?: number;
+  notes?: string;
+  receivedBy?: string;
+}
+
 // ── Invoices ──────────────────────────────────────────────────────────────────
 export type InvoiceStatus = "pending_validation" | "validated" | "paid";
 
