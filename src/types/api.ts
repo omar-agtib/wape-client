@@ -260,7 +260,6 @@ export interface PurchaseOrderListRow {
   lineCount: string | number;
 }
 
-
 // ─── Receptions ──────────────────────────────────────────────────────────────
 
 export type ReceptionStatus = "pending" | "partial" | "completed";
@@ -353,6 +352,8 @@ export interface NonConformity {
   location?: string;
   deadline?: string;
   planId?: string;
+  assignedTo?: string;
+  resolution?: string;
 }
 
 // ── Finance ───────────────────────────────────────────────────────────────────

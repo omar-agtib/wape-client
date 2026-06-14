@@ -862,6 +862,8 @@ export type CreateNcPayload = {
   severity?: "low" | "medium" | "high" | "critical";
   location?: string;
   deadline?: string;
+  assignedTo?: string;
+  resolution?: string;
 };
 
 export type UpdateNcPayload = Partial<Omit<CreateNcPayload, "projectId">>;

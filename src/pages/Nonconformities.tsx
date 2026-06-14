@@ -8,10 +8,11 @@ import {
   projectsService,
   plansService,
   uploadService,
+  personnelService,
   type CreateNcPayload,
   type UpdateNcPayload,
 } from "@/services/wape.service";
-import type { NonConformity, Project } from "@/types/api";
+import type { NonConformity, Project, Personnel } from "@/types/api";
 
 import PageHeader from "@/components/shared/PageHeader";
 import DataTable from "@/components/shared/DataTable";
@@ -45,11 +46,12 @@ interface FormState {
   description: string;
   markerX?: number;
   markerY?: number;
-  // ⚠️ Fields below need backend DTO update to persist
   severity: NcSeverity;
   location: string;
   deadline: string;
   planId: string;
+  assignedTo: string;
+  resolution: string;
 }
 
 interface PlanRecord {
@@ -67,6 +69,8 @@ const defaultForm: FormState = {
   location: "",
   deadline: "",
   planId: "",
+  assignedTo: "",
+  resolution: "",
 };
 
 const SEVERITY_COLORS: Record<NcSeverity, string> = {
@@ -144,6 +148,11 @@ export default function NonConformitiesPage() {
     queryFn: () => projectsService.list({ limit: 100 }),
   });
 
+  const { data: personnelData } = useQuery({
+    queryKey: ["personnel"],
+    queryFn: () => personnelService.list({ limit: 100 }),
+  });
+
   const { data: plansData } = useQuery({
     queryKey: ["plans-by-project", form.projectId],
     queryFn: () => plansService.listByProjet(form.projectId),
@@ -152,6 +161,7 @@ export default function NonConformitiesPage() {
 
   const ncs = ncsData?.items ?? [];
   const projects = (projectsData?.items ?? []) as Project[];
+  const personnelList = (personnelData?.items ?? []) as Personnel[];
   interface PlansResponse {
     items?: PlanRecord[];
   }
@@ -180,6 +190,8 @@ export default function NonConformitiesPage() {
           severity: data.severity,
           location: data.location || undefined,
           deadline: data.deadline || undefined,
+          assignedTo: data.assignedTo || undefined,
+          resolution: data.resolution || undefined,
         };
         nc = await ncService.update(editing.id, payload);
       } else {
@@ -192,6 +204,8 @@ export default function NonConformitiesPage() {
           severity: data.severity,
           location: data.location || undefined,
           deadline: data.deadline || undefined,
+          assignedTo: data.assignedTo || undefined,
+          resolution: data.resolution || undefined,
         };
         nc = await ncService.create(payload);
       }
@@ -236,11 +250,16 @@ export default function NonConformitiesPage() {
             location: nc.location ?? "",
             deadline: nc.deadline ?? "",
             planId: nc.planId ?? "",
+            assignedTo: nc.assignedTo ?? "",
+            resolution: nc.resolution ?? "",
           }
         : defaultForm,
     );
     setShowForm(true);
   };
+
+  const assigneeName = (id?: string) =>
+    id ? (personnelList.find((p) => p.id === id)?.fullName ?? "—") : "—";
 
   const handleUploadPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -306,6 +325,12 @@ export default function NonConformitiesPage() {
       header: "Status",
       cell: (row: NonConformity) => (
         <StatusBadge status={row.status ?? "open"} />
+      ),
+    },
+    {
+      header: "Assigned",
+      cell: (row: NonConformity) => (
+        <span className="text-sm">{assigneeName(row.assignedTo)}</span>
       ),
     },
     {
@@ -497,6 +522,34 @@ export default function NonConformitiesPage() {
               </Select>
             </div>
 
+            <div>
+              <Label>Deadline</Label>
+              <Input
+                type="date"
+                value={form.deadline}
+                onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <Label>Assigned Personnel</Label>
+              <Select
+                value={form.assignedTo}
+                onValueChange={(v) => setForm({ ...form, assignedTo: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select personnel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {personnelList.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {editing && (
               <div>
                 <Label>Status</Label>
@@ -520,26 +573,31 @@ export default function NonConformitiesPage() {
                 </Select>
               </div>
             )}
-
-            <div>
-              <Label>Deadline</Label>
-              <Input
-                type="date"
-                value={form.deadline}
-                onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-              />
-            </div>
           </div>
 
-          {/* Description */}
-          <div>
-            <Label>Description *</Label>
-            <Textarea
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-            />
+          {/* Description + Resolution */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Description *</Label>
+              <Textarea
+                rows={4}
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label>Resolution</Label>
+              <Textarea
+                rows={4}
+                value={form.resolution}
+                onChange={(e) =>
+                  setForm({ ...form, resolution: e.target.value })
+                }
+                placeholder="How was this resolved?"
+              />
+            </div>
           </div>
 
           {/* Related Plan */}
