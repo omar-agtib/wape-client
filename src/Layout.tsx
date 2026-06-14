@@ -37,7 +37,7 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export default function Layout() {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1024);
   const location = useLocation();
 
   const pageTitle =

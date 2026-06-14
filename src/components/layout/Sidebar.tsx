@@ -212,6 +212,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     );
   };
 
+  // On mobile, close the sidebar after navigating so the page gets full width.
+  const handleNavClick = () => {
+    if (window.innerWidth < 1024 && !collapsed) {
+      onToggle();
+    }
+  };
+
   const isPathActive = (page: string) =>
     location.pathname === createPageUrl(page);
 
@@ -305,6 +312,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                           <Link
                             key={child.page}
                             to={createPageUrl(child.page)}
+                            onClick={handleNavClick}
                             className={cn(
                               "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-150",
                               active
@@ -330,6 +338,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 key={item.page}
                 to={createPageUrl(item.page)}
                 title={collapsed ? item.name : undefined}
+                onClick={handleNavClick}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
                   "transition-colors duration-150",
