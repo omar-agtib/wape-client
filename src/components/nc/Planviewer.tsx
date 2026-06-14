@@ -8,6 +8,7 @@ interface Props {
   planUrl?: string;
   markerX?: number; // 0-100%
   markerY?: number; // 0-100%
+  annotations?: { tool: string; color: string; points: number[][] }[];
   onClose: () => void;
 }
 
@@ -17,6 +18,7 @@ export default function PlanViewer({
   planUrl,
   markerX,
   markerY,
+  annotations,
   onClose,
 }: Props) {
   const [zoom, setZoom] = useState(1);
@@ -102,6 +104,46 @@ export default function PlanViewer({
                     fill="currentColor"
                   />
                 </div>
+              )}
+              {/* Saved annotations overlay (percentage coords → SVG viewBox 0–100) */}
+              {annotations && annotations.length > 0 && (
+                <svg
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                >
+                  {annotations.map((p, i) => {
+                    if (p.tool === "pin" || p.tool === "warning") {
+                      const [x, y] = p.points[0] ?? [0, 0];
+                      return (
+                        <text
+                          key={i}
+                          x={x}
+                          y={y}
+                          fontSize="4"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                        >
+                          {p.tool === "pin" ? "📍" : "⚠️"}
+                        </text>
+                      );
+                    }
+                    const pts = p.points.map(([x, y]) => `${x},${y}`).join(" ");
+                    return (
+                      <polyline
+                        key={i}
+                        points={pts}
+                        fill="none"
+                        stroke={p.color}
+                        strokeWidth={p.tool === "highlight" ? 3 : 0.6}
+                        strokeOpacity={p.tool === "highlight" ? 0.35 : 1}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    );
+                  })}
+                </svg>
               )}
             </>
           ) : (

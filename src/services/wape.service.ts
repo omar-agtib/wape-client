@@ -864,6 +864,7 @@ export type CreateNcPayload = {
   deadline?: string;
   assignedTo?: string;
   resolution?: string;
+  annotations?: { tool: string; color: string; points: number[][] }[];
 };
 
 export type UpdateNcPayload = Partial<Omit<CreateNcPayload, "projectId">>;
@@ -937,7 +938,12 @@ export const ncService = {
   // Plan with marker position (0-100% percentages)
   uploadPlan: (
     id: string,
-    body: { planUrl: string; markerX?: number; markerY?: number },
+    body: {
+      planId?: string;
+      planUrl?: string;
+      markerX?: number;
+      markerY?: number;
+    },
   ) =>
     extractData(
       api.patch<{ success: boolean; data: NonConformity }>(

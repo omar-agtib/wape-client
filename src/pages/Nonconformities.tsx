@@ -52,6 +52,7 @@ interface FormState {
   planId: string;
   assignedTo: string;
   resolution: string;
+  annotations: { tool: string; color: string; points: number[][] }[];
 }
 
 interface PlanRecord {
@@ -71,6 +72,7 @@ const defaultForm: FormState = {
   planId: "",
   assignedTo: "",
   resolution: "",
+  annotations: [],
 };
 
 const SEVERITY_COLORS: Record<NcSeverity, string> = {
@@ -192,6 +194,7 @@ export default function NonConformitiesPage() {
           deadline: data.deadline || undefined,
           assignedTo: data.assignedTo || undefined,
           resolution: data.resolution || undefined,
+          annotations: data.annotations,
         };
         nc = await ncService.update(editing.id, payload);
       } else {
@@ -206,14 +209,16 @@ export default function NonConformitiesPage() {
           deadline: data.deadline || undefined,
           assignedTo: data.assignedTo || undefined,
           resolution: data.resolution || undefined,
+          annotations: data.annotations,
         };
         nc = await ncService.create(payload);
       }
 
-      // Upload plan with marker
-      if (selectedPlanUrl) {
+      // Persist plan association + marker
+      if (data.planId) {
         await ncService.uploadPlan(nc.id, {
-          planUrl: selectedPlanUrl,
+          planId: data.planId,
+          planUrl: selectedPlanUrl || undefined,
           markerX: data.markerX,
           markerY: data.markerY,
         });
@@ -252,6 +257,7 @@ export default function NonConformitiesPage() {
             planId: nc.planId ?? "",
             assignedTo: nc.assignedTo ?? "",
             resolution: nc.resolution ?? "",
+            annotations: nc.annotations ?? [],
           }
         : defaultForm,
     );
@@ -380,6 +386,7 @@ export default function NonConformitiesPage() {
           planUrl={planViewerData.planUrl}
           markerX={planViewerData.nc.markerX}
           markerY={planViewerData.nc.markerY}
+          annotations={planViewerData.nc.annotations}
           onClose={() => setPlanViewerData(null)}
         />
       )}
@@ -646,7 +653,15 @@ export default function NonConformitiesPage() {
                       : null
                   }
                   onChange={(marker) =>
-                    setForm({ ...form, markerX: marker.x, markerY: marker.y })
+                    setForm((f) => ({
+                      ...f,
+                      markerX: marker.x,
+                      markerY: marker.y,
+                    }))
+                  }
+                  initialPaths={form.annotations}
+                  onPathsChange={(paths) =>
+                    setForm((f) => ({ ...f, annotations: paths }))
                   }
                 />
               </div>

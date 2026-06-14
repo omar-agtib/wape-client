@@ -15,9 +15,9 @@ import {
 type ToolId = "pen" | "highlight" | "pin" | "warning";
 
 interface AnnotationPath {
-  tool: ToolId;
+  tool: string;
   color: string;
-  points: [number, number][];
+  points: number[][];
 }
 
 interface Marker {
@@ -29,8 +29,8 @@ interface Props {
   planUrl: string;
   marker?: Marker | null;
   onChange: (marker: Marker) => void;
-  // Optional: also expose raw annotation paths for richer storage
   onPathsChange?: (paths: AnnotationPath[]) => void;
+  initialPaths?: AnnotationPath[]; // saved paths, points as % (0–100)
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -58,6 +58,7 @@ export default function PlanAnnotator({
   marker,
   onChange,
   onPathsChange,
+  initialPaths,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -67,6 +68,37 @@ export default function PlanAnnotator({
   const [paths, setPaths] = useState<AnnotationPath[]>([]);
   const [currentPath, setCurrentPath] = useState<[number, number][]>([]);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [loadedInitial, setLoadedInitial] = useState(false);
+
+  // paths are stored internally in PIXELS; we save/load in PERCENT (0–100).
+  const toPercent = (px: AnnotationPath[]): AnnotationPath[] => {
+    const c = canvasRef.current;
+    if (!c) return px;
+    return px.map((p) => ({
+      ...p,
+      points: p.points.map(
+        ([x, y]) =>
+          [
+            Math.round((x / c.width) * 1000) / 10,
+            Math.round((y / c.height) * 1000) / 10,
+          ] as [number, number],
+      ),
+    }));
+  };
+  const toPixels = (pct: AnnotationPath[]): AnnotationPath[] => {
+    const c = canvasRef.current;
+    if (!c) return pct;
+    return pct.map((p) => ({
+      ...p,
+      points: p.points.map(
+        ([x, y]) =>
+          [(x / 100) * c.width, (y / 100) * c.height] as [number, number],
+      ),
+    }));
+  };
+
+  // Emit current paths to parent, converted to percent.
+  const emit = (px: AnnotationPath[]) => onPathsChange?.(toPercent(px));
 
   const drawPath = (ctx: CanvasRenderingContext2D, p: AnnotationPath) => {
     if (!p.points?.length) return;
@@ -133,7 +165,7 @@ export default function PlanAnnotator({
       const newPath: AnnotationPath = { tool, color, points: [pos] };
       const next = [...paths, newPath];
       setPaths(next);
-      onPathsChange?.(next);
+      emit(next);
 
       // Also update marker position for backend
       const canvas = canvasRef.current!;
@@ -167,7 +199,7 @@ export default function PlanAnnotator({
       const newPath: AnnotationPath = { tool, color, points: currentPath };
       const next = [...paths, newPath];
       setPaths(next);
-      onPathsChange?.(next);
+      emit(next);
 
       // Update marker to last point drawn
       if (currentPath.length > 0) {
@@ -185,12 +217,12 @@ export default function PlanAnnotator({
   const undo = () => {
     const next = paths.slice(0, -1);
     setPaths(next);
-    onPathsChange?.(next);
+    emit(next);
   };
 
   const clear = () => {
     setPaths([]);
-    onPathsChange?.([]);
+    emit([]);
   };
 
   return (
@@ -269,6 +301,11 @@ export default function PlanAnnotator({
                   canvas.width = (e.target as HTMLImageElement).naturalWidth;
                   canvas.height = (e.target as HTMLImageElement).naturalHeight;
                   setImgLoaded(true);
+                  // Load saved annotations (percent → pixels) once, after sizing.
+                  if (initialPaths && initialPaths.length && !loadedInitial) {
+                    setPaths(toPixels(initialPaths));
+                    setLoadedInitial(true);
+                  }
                 }
               }}
             />

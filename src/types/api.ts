@@ -354,6 +354,7 @@ export interface NonConformity {
   planId?: string;
   assignedTo?: string;
   resolution?: string;
+  annotations?: { tool: string; color: string; points: number[][] }[];
 }
 
 // ── Finance ───────────────────────────────────────────────────────────────────
