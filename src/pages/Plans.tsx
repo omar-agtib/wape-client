@@ -7,8 +7,9 @@ import {
   plansService,
   projectsService,
   uploadService,
+  personnelService,
 } from "@/services/wape.service";
-import type { Project } from "@/types/api";
+import type { Project, Personnel } from "@/types/api";
 
 import PageHeader from "@/components/shared/PageHeader";
 import DataTable from "@/components/shared/DataTable";
@@ -37,6 +38,8 @@ interface PlanRecord {
   fileType?: string;
   reference?: string;
   description?: string;
+  author?: string;
+  versionActuelle?: number;
   projetId?: string;
   projectId?: string;
   createdAt?: string;
@@ -48,6 +51,7 @@ interface FormState {
   projetId: string;
   categorie: string;
   reference: string;
+  author: string;
   description: string;
   fileUrl: string;
   fileType: string;
@@ -58,6 +62,7 @@ const defaultForm: FormState = {
   projetId: "",
   categorie: "architectural",
   reference: "",
+  author: "",
   description: "",
   fileUrl: "",
   fileType: "pdf",
@@ -87,9 +92,16 @@ export default function PlansPage() {
     queryFn: () => projectsService.list({ limit: 100 }),
   });
 
+  const { data: personnelData } = useQuery({
+    queryKey: ["personnel"],
+    queryFn: () => personnelService.list({ limit: 100 }),
+  });
+
   const plans = ((plansData as { items?: PlanRecord[] })?.items ??
     []) as PlanRecord[];
+
   const projects = (projectsData?.items ?? []) as Project[];
+  const personnelList = (personnelData?.items ?? []) as Personnel[];
 
   // ── Mutations
   const saveMutation = useMutation({
@@ -99,6 +111,7 @@ export default function PlansPage() {
           nom: data.nom,
           categorie: data.categorie,
           reference: data.reference || undefined,
+          author: data.author || undefined,
           description: data.description || undefined,
         });
       } else {
@@ -109,6 +122,7 @@ export default function PlansPage() {
           fileUrl: data.fileUrl,
           fileType: data.fileType,
           reference: data.reference || undefined,
+          author: data.author || undefined,
           description: data.description || undefined,
         });
       }
@@ -143,6 +157,7 @@ export default function PlansPage() {
             projetId: plan.projetId ?? plan.projectId ?? "",
             categorie: plan.categorie ?? "architectural",
             reference: plan.reference ?? "",
+            author: plan.author ?? "",
             description: plan.description ?? "",
             fileUrl: plan.fileUrl ?? "",
             fileType: plan.fileType ?? "pdf",
@@ -202,7 +217,8 @@ export default function PlansPage() {
         <div>
           <p className="font-medium text-foreground">{row.nom ?? row.name}</p>
           <p className="text-xs text-muted-foreground">
-            {row.reference ? `Ref: ${row.reference}` : (row.categorie ?? "")}
+            v{row.versionActuelle ?? 1}.0
+            {row.author ? ` • ${row.author}` : ""}
           </p>
         </div>
       ),
@@ -439,6 +455,38 @@ export default function PlansPage() {
               placeholder="e.g. PLN-001"
             />
           </div>
+
+          {/* Author (personnel dropdown — stores the name) */}
+          <div>
+            <Label>Author</Label>
+            <Select
+              value={form.author}
+              onValueChange={(v) => setForm({ ...form, author: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select author" />
+              </SelectTrigger>
+              <SelectContent>
+                {personnelList.map((p) => (
+                  <SelectItem key={p.id} value={p.fullName}>
+                    {p.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Version (read-only — auto-managed) */}
+          {editing && (
+            <div>
+              <Label>Version</Label>
+              <Input
+                value={`v${editing.versionActuelle ?? 1}.0`}
+                disabled
+                readOnly
+              />
+            </div>
+          )}
 
           {/* File Upload */}
           <div className="col-span-2">

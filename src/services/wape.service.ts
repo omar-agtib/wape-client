@@ -1476,6 +1476,7 @@ export const plansService = {
     fileUrl: string;
     fileType: string;
     reference?: string;
+    author?: string;
     description?: string;
     largeurPx?: number;
     hauteurPx?: number;
